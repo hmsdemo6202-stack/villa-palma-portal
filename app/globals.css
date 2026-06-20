@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+:root {
+  --background: #faf6f0;
+  --foreground: #2d1c14;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter);
+  --font-serif: var(--font-playfair), Georgia, "Times New Roman", serif;
+
+  /* Warm boutique palette */
+  --color-cream: #faf6f0;
+  --color-cream-dark: #f0e8de;
+  --color-terra: #b85c38;
+  --color-terra-dark: #9e4e2f;
+  --color-terra-light: #fdf0eb;
+  --color-brown: #2d1c14;
+  --color-brown-mid: #7a5c4f;
+  --color-brown-light: #9d8075;
+  --color-warm-border: #e8ddd5;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
