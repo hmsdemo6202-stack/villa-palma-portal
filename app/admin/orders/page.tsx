@@ -35,6 +35,57 @@ function fmt(d: string) {
   return new Date(d).toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
+function printReceipt(o: Order) {
+  const location = o.restaurant_tables
+    ? `Table ${o.restaurant_tables.table_number}`
+    : o.rooms ? `Room ${o.rooms.room_number} (Room Service)` : '—'
+
+  const rows = o.order_items.map(item => `
+    <tr>
+      <td style="padding:4px 0">${item.menu_items?.name ?? '—'}</td>
+      <td style="padding:4px 8px;text-align:center">${item.quantity}</td>
+      <td style="padding:4px 0;text-align:right">₱${(item.price_at_order * item.quantity).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
+    </tr>`).join('')
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Receipt</title>
+  <style>
+    body{font-family:'Courier New',monospace;font-size:13px;width:300px;margin:0 auto;padding:16px;color:#111}
+    h1{font-size:16px;text-align:center;margin:0 0 2px}
+    .sub{text-align:center;font-size:11px;color:#555;margin-bottom:12px}
+    hr{border:none;border-top:1px dashed #999;margin:8px 0}
+    table{width:100%;border-collapse:collapse}
+    th{font-size:11px;text-align:left;border-bottom:1px solid #ccc;padding:4px 0;font-weight:bold}
+    th:nth-child(2){text-align:center}
+    th:nth-child(3){text-align:right}
+    .total{font-weight:bold;font-size:14px}
+    .footer{text-align:center;font-size:11px;color:#555;margin-top:12px}
+    @media print{body{width:100%}}
+  </style></head><body>
+  <h1>CABALUM HOTEL</h1>
+  <div class="sub">Official Receipt</div>
+  <hr>
+  <div><b>Guest:</b> ${o.profiles?.full_name ?? 'Guest'}</div>
+  <div><b>Location:</b> ${location}</div>
+  <div><b>Date:</b> ${fmt(o.created_at)}</div>
+  <div><b>Order #:</b> ${o.id.slice(-8).toUpperCase()}</div>
+  <hr>
+  <table>
+    <thead><tr><th>Item</th><th>Qty</th><th>Amount</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <hr>
+  <table><tr>
+    <td class="total">TOTAL</td>
+    <td class="total" style="text-align:right">₱${Number(o.total).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
+  </tr></table>
+  <div class="footer"><br>Thank you for your visit!<br>Cabalum Hotel</div>
+  <script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}</script>
+  </body></html>`
+
+  const w = window.open('', '_blank', 'width=380,height=600')
+  if (w) { w.document.write(html); w.document.close() }
+}
+
 export default function AdminOrdersPage() {
   const supabase = createClient()
   const [orders, setOrders] = useState<Order[]>([])
@@ -138,6 +189,12 @@ export default function AdminOrdersPage() {
                   {o.status === 'served' && (
                     <p className="text-xs text-gray-400 text-right">Waiting for student to Pay Now</p>
                   )}
+                  <button
+                    onClick={() => printReceipt(o)}
+                    className="text-xs px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 whitespace-nowrap"
+                  >
+                    🖨 Print Receipt
+                  </button>
                 </div>
               </div>
             </div>

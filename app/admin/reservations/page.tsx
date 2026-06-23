@@ -2,231 +2,296 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
-type RoomRes = {
+type Guest  = { id: string; full_name: string }
+type Room   = { id: string; room_number: string; room_types: { name: string; base_price: number } | null }
+
+type Reservation = {
   id: string
-  check_in: string
-  check_out: string
-  total_price: number | null
-  status: string
+  guest_id: string
+  room_id: string
+  check_in_date: string
+  check_out_date: string
+  nights: number
+  total_amount: number | null
+  status: 'pending' | 'confirmed' | 'checked_in' | 'checked_out' | 'cancelled' | 'no_show'
+  notes: string | null
   created_at: string
-  profiles: { full_name: string | null } | null
-  rooms: { room_number: string; room_types: { name: string } | null } | null
+  guests:  { full_name: string } | null
+  rooms:   { room_number: string; room_types: { name: string } | null } | null
 }
 
-type TableRes = {
-  id: string
-  reservation_time: string
-  duration_minutes: number
-  party_size: number
-  status: string
-  created_at: string
-  profiles: { full_name: string | null } | null
-  restaurant_tables: { table_number: string } | null
+type ResForm = {
+  guest_id: string
+  room_id: string
+  check_in_date: string
+  check_out_date: string
+  total_amount: string
+  status: Reservation['status']
+  notes: string
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  pending:     'bg-yellow-100 text-yellow-800',
-  confirmed:   'bg-blue-100 text-blue-800',
-  checked_in:  'bg-indigo-100 text-indigo-800',
+  pending:     'bg-yellow-100 text-yellow-700',
+  confirmed:   'bg-blue-100 text-blue-700',
+  checked_in:  'bg-green-100 text-green-700',
   checked_out: 'bg-gray-100 text-gray-600',
   cancelled:   'bg-red-100 text-red-600',
+  no_show:     'bg-orange-100 text-orange-700',
 }
 
-function StatusBadge({ status }: { status: string }) {
-  return (
-    <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${STATUS_COLORS[status] ?? 'bg-gray-100'}`}>
-      {status.replace('_', ' ')}
-    </span>
-  )
-}
+function todayStr() { return new Date().toISOString().split('T')[0] }
+function tomorrowStr() { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0] }
 
-function fmt(d: string) {
-  return new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })
-}
-function fmtTime(d: string) {
-  return new Date(d).toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-}
-
-const ROOM_ACTIONS: Record<string, { label: string; next: string }[]> = {
-  pending:    [{ label: 'Confirm', next: 'confirmed' }, { label: 'Cancel', next: 'cancelled' }],
-  confirmed:  [{ label: 'Check In', next: 'checked_in' }, { label: 'Cancel', next: 'cancelled' }],
-  checked_in: [{ label: 'Check Out', next: 'checked_out' }],
-}
-
-const TABLE_ACTIONS: Record<string, { label: string; next: string }[]> = {
-  pending:   [{ label: 'Confirm', next: 'confirmed' }, { label: 'Cancel', next: 'cancelled' }],
-  confirmed: [{ label: 'Cancel', next: 'cancelled' }],
+function emptyForm(): ResForm {
+  return { guest_id: '', room_id: '', check_in_date: todayStr(), check_out_date: tomorrowStr(), total_amount: '', status: 'pending', notes: '' }
 }
 
 export default function AdminReservationsPage() {
   const supabase = createClient()
-  const [roomRes, setRoomRes] = useState<RoomRes[]>([])
-  const [tableRes, setTableRes] = useState<TableRes[]>([])
-  const [msg, setMsg] = useState<{ id: string; text: string; ok: boolean } | null>(null)
+  const [reservations, setReservations] = useState<Reservation[]>([])
+  const [guests, setGuests]   = useState<Guest[]>([])
+  const [rooms, setRooms]     = useState<Room[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const [showForm, setShowForm] = useState(false)
+  const [editId, setEditId]     = useState<string | null>(null)
+  const [form, setForm]         = useState<ResForm>(emptyForm())
+  const [saving, setSaving]     = useState(false)
+
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [error, setError]   = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
 
   const load = useCallback(async () => {
-    const [{ data: rr }, { data: tr }] = await Promise.all([
-      supabase
-        .from('room_reservations')
-        .select('*, profiles(full_name), rooms(room_number, room_types(name))')
-        .order('created_at', { ascending: false }),
-      supabase
-        .from('table_reservations')
-        .select('*, profiles(full_name), restaurant_tables(table_number)')
-        .order('reservation_time', { ascending: false }),
+    const [{ data: res }, { data: gs }, { data: rs }] = await Promise.all([
+      supabase.from('reservations')
+        .select('*, guests(full_name), rooms(room_number, room_types(name))')
+        .order('check_in_date', { ascending: false })
+        .limit(100),
+      supabase.from('guests').select('id, full_name').order('full_name'),
+      supabase.from('rooms').select('id, room_number, room_types(name, base_price)').order('room_number'),
     ])
-    setRoomRes((rr as RoomRes[]) ?? [])
-    setTableRes((tr as TableRes[]) ?? [])
+    setReservations((res as Reservation[]) ?? [])
+    setGuests(gs ?? [])
+    setRooms((rs as unknown as Room[]) ?? [])
+    setLoading(false)
   }, [supabase])
 
   useEffect(() => { load() }, [load])
 
-  async function updateRoomStatus(id: string, status: string) {
-    const { error } = await supabase.from('room_reservations').update({ status }).eq('id', id)
-    setMsg({ id, text: error ? error.message : `Status updated to "${status.replace('_', ' ')}".`, ok: !error })
+  function flash(msg: string, ok = true) {
+    if (ok) { setSuccess(msg); setError(null) }
+    else { setError(msg); setSuccess(null) }
+    setTimeout(() => { setSuccess(null); setError(null) }, 4000)
+  }
+
+  function updateForm(patch: Partial<ResForm>) {
+    setForm(prev => {
+      const next = { ...prev, ...patch }
+      const room = rooms.find(r => r.id === next.room_id)
+      if (room?.room_types && next.check_in_date && next.check_out_date) {
+        const nights = Math.max(0, (new Date(next.check_out_date).getTime() - new Date(next.check_in_date).getTime()) / 86400000)
+        next.total_amount = (nights * room.room_types.base_price).toFixed(2)
+      }
+      return next
+    })
+  }
+
+  function openAdd() { setForm(emptyForm()); setEditId(null); setShowForm(true) }
+
+  function openEdit(r: Reservation) {
+    setForm({
+      guest_id: r.guest_id, room_id: r.room_id,
+      check_in_date: r.check_in_date, check_out_date: r.check_out_date,
+      total_amount: r.total_amount != null ? String(r.total_amount) : '',
+      status: r.status, notes: r.notes ?? ''
+    })
+    setEditId(r.id); setShowForm(true)
+  }
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    const payload = {
+      guest_id:       form.guest_id,
+      room_id:        form.room_id,
+      check_in_date:  form.check_in_date,
+      check_out_date: form.check_out_date,
+      total_amount:   form.total_amount ? Number(form.total_amount) : null,
+      status:         form.status,
+      notes:          form.notes || null,
+      created_by:     user?.id ?? null,
+    }
+    const { error: err } = editId
+      ? await supabase.from('reservations').update(payload).eq('id', editId)
+      : await supabase.from('reservations').insert(payload)
+    if (err) { flash(err.message, false); setSaving(false); return }
+    flash(editId ? 'Reservation updated.' : 'Reservation created.')
+    setSaving(false); setShowForm(false); setEditId(null); setForm(emptyForm())
     load()
   }
 
-  async function updateTableStatus(id: string, status: string) {
-    const { error } = await supabase.from('table_reservations').update({ status }).eq('id', id)
-    setMsg({ id, text: error ? error.message : `Status updated to "${status}".`, ok: !error })
+  async function changeStatus(id: string, status: Reservation['status']) {
+    const { error: err } = await supabase.from('reservations').update({ status }).eq('id', id)
+    if (err) { flash(err.message, false); return }
     load()
   }
 
-  const filterStatuses = ['all', 'pending', 'confirmed', 'checked_in', 'checked_out', 'cancelled']
-  const filteredRoom = statusFilter === 'all' ? roomRes : roomRes.filter(r => r.status === statusFilter)
-  const filteredTable = statusFilter === 'all' ? tableRes : tableRes.filter(r => r.status === statusFilter)
+  async function handleDelete(id: string) {
+    if (!confirm('Delete this reservation?')) return
+    const { error: err } = await supabase.from('reservations').delete().eq('id', id)
+    if (err) { flash(err.message, false); return }
+    flash('Reservation deleted.')
+    load()
+  }
+
+  const visible = reservations.filter(r => statusFilter === 'all' || r.status === statusFilter)
+
+  if (loading) return <div className="text-gray-400">Loading reservations…</div>
 
   return (
-    <div className="space-y-10">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-2xl font-bold">Reservations</h1>
-        <div className="flex gap-1 flex-wrap">
-          {filterStatuses.map(s => (
-            <button key={s} onClick={() => setStatusFilter(s)}
-              className={`text-xs px-3 py-1.5 rounded-full border capitalize transition-colors ${
-                statusFilter === s ? 'bg-terra text-white border-terra' : 'hover:border-terra text-brown-mid border-warm-border'}`}>
-              {s.replace('_', ' ')}
-            </button>
-          ))}
+    <div className="space-y-6 max-w-6xl">
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-brown">Reservations</h1>
+          <p className="text-sm text-gray-500 mt-0.5">{reservations.length} total</p>
         </div>
+        <button onClick={openAdd}
+          className="bg-terra text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-terra-dark transition-colors">
+          + New Reservation
+        </button>
       </div>
 
-      {/* Room Reservations */}
-      <section>
-        <h2 className="text-lg font-semibold mb-3">
-          Room Reservations
-          <span className="ml-2 text-sm font-normal text-gray-400">({filteredRoom.length})</span>
-        </h2>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm border rounded-xl overflow-hidden">
-            <thead className="bg-gray-50 text-left">
-              <tr>
-                {['Guest', 'Room', 'Check-in', 'Check-out', 'Nights', 'Total', 'Status', 'Actions'].map(h => (
-                  <th key={h} className="px-4 py-2.5 font-medium text-gray-500 whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y bg-white">
-              {filteredRoom.length === 0 && (
-                <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">No reservations.</td></tr>
-              )}
-              {filteredRoom.map(r => {
-                const nights = Math.round(
-                  (new Date(r.check_out).getTime() - new Date(r.check_in).getTime()) / 86400000
-                )
-                const actions = ROOM_ACTIONS[r.status] ?? []
-                return (
-                  <tr key={r.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium whitespace-nowrap">{r.profiles?.full_name ?? '—'}</td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      {r.rooms?.room_number}
-                      <span className="text-gray-400 text-xs ml-1">{r.rooms?.room_types?.name}</span>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">{fmt(r.check_in)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap">{fmt(r.check_out)}</td>
-                    <td className="px-4 py-3">{nights}</td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      {r.total_price != null ? `₱${Number(r.total_price).toLocaleString()}` : '—'}
-                    </td>
-                    <td className="px-4 py-3"><StatusBadge status={r.status} /></td>
-                    <td className="px-4 py-3">
-                      {msg?.id === r.id && (
-                        <p className={`text-xs mb-1 ${msg.ok ? 'text-green-600' : 'text-red-500'}`}>{msg.text}</p>
-                      )}
-                      <div className="flex gap-1 flex-wrap">
-                        {actions.map(({ label, next }) => (
-                          <button key={next} onClick={() => updateRoomStatus(r.id, next)}
-                            className={`text-xs px-2.5 py-1 rounded-lg border whitespace-nowrap ${
-                              next === 'cancelled'
-                                ? 'border-[#e8b4b4] text-[#9e3535] hover:bg-[#fdf2f2]'
-                                : 'border-[#f0c8aa] text-terra hover:bg-terra-light'}`}>
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      {error   && <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">{error}</div>}
+      {success && <div className="bg-green-50 border border-green-200 text-green-700 rounded-lg px-4 py-3 text-sm">{success}</div>}
 
-      {/* Table Reservations */}
-      <section>
-        <h2 className="text-lg font-semibold mb-3">
-          Table Reservations
-          <span className="ml-2 text-sm font-normal text-gray-400">({filteredTable.length})</span>
-        </h2>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm border rounded-xl overflow-hidden">
-            <thead className="bg-gray-50 text-left">
-              <tr>
-                {['Guest', 'Table', 'Date & Time', 'Duration', 'Party', 'Status', 'Actions'].map(h => (
-                  <th key={h} className="px-4 py-2.5 font-medium text-gray-500 whitespace-nowrap">{h}</th>
+      {showForm && (
+        <form onSubmit={handleSave} className="bg-white border border-warm-border rounded-xl p-5 space-y-4">
+          <h2 className="font-semibold text-brown">{editId ? 'Edit Reservation' : 'New Reservation'}</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Guest *</label>
+              <select required value={form.guest_id} onChange={e => updateForm({ guest_id: e.target.value })}
+                className="w-full border border-warm-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-terra">
+                <option value="">— Select Guest —</option>
+                {guests.map(g => <option key={g.id} value={g.id}>{g.full_name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Room *</label>
+              <select required value={form.room_id} onChange={e => updateForm({ room_id: e.target.value })}
+                className="w-full border border-warm-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-terra">
+                <option value="">— Select Room —</option>
+                {rooms.map(r => (
+                  <option key={r.id} value={r.id}>
+                    {r.room_number}{r.room_types ? ` — ${r.room_types.name} (₱${Number(r.room_types.base_price).toLocaleString('en-PH')}/night)` : ''}
+                  </option>
                 ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Check-in *</label>
+              <input required type="date" value={form.check_in_date}
+                onChange={e => updateForm({ check_in_date: e.target.value })}
+                className="w-full border border-warm-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-terra" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Check-out *</label>
+              <input required type="date" value={form.check_out_date} min={form.check_in_date}
+                onChange={e => updateForm({ check_out_date: e.target.value })}
+                className="w-full border border-warm-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-terra" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Total Amount (₱)</label>
+              <input type="number" min={0} step="0.01" value={form.total_amount}
+                onChange={e => setForm(f => ({ ...f, total_amount: e.target.value }))}
+                className="w-full border border-warm-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-terra"
+                placeholder="Auto-calculated from room rate" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Status</label>
+              <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value as Reservation['status'] }))}
+                className="w-full border border-warm-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-terra">
+                <option value="pending">Pending</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="checked_in">Checked In</option>
+                <option value="checked_out">Checked Out</option>
+                <option value="cancelled">Cancelled</option>
+                <option value="no_show">No Show</option>
+              </select>
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-medium text-gray-600 mb-1">Notes</label>
+              <input value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+                className="w-full border border-warm-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-terra"
+                placeholder="Special requests, early check-in, etc." />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button type="submit" disabled={saving}
+              className="bg-terra text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-terra-dark disabled:opacity-50 transition-colors">
+              {saving ? 'Saving…' : editId ? 'Save Changes' : 'Create Reservation'}
+            </button>
+            <button type="button" onClick={() => { setShowForm(false); setEditId(null) }}
+              className="border border-warm-border px-4 py-2 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
+          </div>
+        </form>
+      )}
+
+      <div className="flex gap-1 flex-wrap">
+        {(['all','pending','confirmed','checked_in','checked_out','cancelled','no_show'] as const).map(s => (
+          <button key={s} onClick={() => setStatusFilter(s)}
+            className={`text-xs px-3 py-1.5 rounded-full border capitalize transition-colors ${
+              statusFilter === s ? 'bg-terra text-white border-terra' : 'text-brown-mid border-warm-border hover:border-terra'}`}>
+            {s.replace(/_/g, ' ')}
+          </button>
+        ))}
+      </div>
+
+      <div className="overflow-x-auto rounded-xl border border-warm-border">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 text-left">
+            <tr>{['Guest', 'Room', 'Check-in', 'Check-out', 'Nights', 'Total', 'Status', 'Actions'].map(h =>
+              <th key={h} className="px-4 py-3 font-medium text-gray-500 whitespace-nowrap">{h}</th>)}
+            </tr>
+          </thead>
+          <tbody className="divide-y bg-white">
+            {visible.length === 0 && <tr><td colSpan={8} className="px-4 py-10 text-center text-gray-400">No reservations found.</td></tr>}
+            {visible.map(r => (
+              <tr key={r.id} className="hover:bg-gray-50 transition-colors">
+                <td className="px-4 py-3 font-medium text-brown">{r.guests?.full_name ?? '—'}</td>
+                <td className="px-4 py-3">{r.rooms?.room_number ?? '—'} <span className="text-gray-400 text-xs">{r.rooms?.room_types?.name}</span></td>
+                <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
+                  {new Date(r.check_in_date + 'T00:00:00').toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </td>
+                <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
+                  {new Date(r.check_out_date + 'T00:00:00').toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </td>
+                <td className="px-4 py-3 text-gray-500">{r.nights}</td>
+                <td className="px-4 py-3 font-semibold">{r.total_amount != null ? '₱' + Number(r.total_amount).toLocaleString('en-PH') : '—'}</td>
+                <td className="px-4 py-3">
+                  <select value={r.status} onChange={e => changeStatus(r.id, e.target.value as Reservation['status'])}
+                    className={`text-xs px-2 py-0.5 rounded-full font-medium border-0 cursor-pointer ${STATUS_COLORS[r.status]}`}>
+                    <option value="pending">Pending</option>
+                    <option value="confirmed">Confirmed</option>
+                    <option value="checked_in">Checked In</option>
+                    <option value="checked_out">Checked Out</option>
+                    <option value="cancelled">Cancelled</option>
+                    <option value="no_show">No Show</option>
+                  </select>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex gap-2">
+                    <button onClick={() => openEdit(r)} className="text-xs border text-blue-600 px-2.5 py-1 rounded-lg hover:bg-blue-50">Edit</button>
+                    <button onClick={() => handleDelete(r.id)} className="text-xs border border-red-200 text-red-500 px-2.5 py-1 rounded-lg hover:bg-red-50">Delete</button>
+                  </div>
+                </td>
               </tr>
-            </thead>
-            <tbody className="divide-y bg-white">
-              {filteredTable.length === 0 && (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">No reservations.</td></tr>
-              )}
-              {filteredTable.map(r => {
-                const actions = TABLE_ACTIONS[r.status] ?? []
-                return (
-                  <tr key={r.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium whitespace-nowrap">{r.profiles?.full_name ?? '—'}</td>
-                    <td className="px-4 py-3">Table {r.restaurant_tables?.table_number}</td>
-                    <td className="px-4 py-3 whitespace-nowrap">{fmtTime(r.reservation_time)}</td>
-                    <td className="px-4 py-3">{r.duration_minutes} min</td>
-                    <td className="px-4 py-3">{r.party_size}</td>
-                    <td className="px-4 py-3"><StatusBadge status={r.status} /></td>
-                    <td className="px-4 py-3">
-                      {msg?.id === r.id && (
-                        <p className={`text-xs mb-1 ${msg.ok ? 'text-green-600' : 'text-red-500'}`}>{msg.text}</p>
-                      )}
-                      <div className="flex gap-1">
-                        {actions.map(({ label, next }) => (
-                          <button key={next} onClick={() => updateTableStatus(r.id, next)}
-                            className={`text-xs px-2.5 py-1 rounded-lg border whitespace-nowrap ${
-                              next === 'cancelled'
-                                ? 'border-[#e8b4b4] text-[#9e3535] hover:bg-[#fdf2f2]'
-                                : 'border-[#f0c8aa] text-terra hover:bg-terra-light'}`}>
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      </section>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

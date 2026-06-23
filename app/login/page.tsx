@@ -1,7 +1,6 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 
 export default function LoginPage() {
@@ -21,7 +20,7 @@ export default function LoginPage() {
       setError(error.message)
       setLoading(false)
     } else {
-      router.push('/dashboard')
+      router.push('/admin')
       router.refresh()
     }
   }
@@ -31,13 +30,13 @@ export default function LoginPage() {
       {/* Left brand panel */}
       <div className="hidden lg:flex lg:w-5/12 bg-[#2d1c14] flex-col items-center justify-center p-12 relative overflow-hidden">
         <div className="absolute inset-0 opacity-5"
-          style={{ backgroundImage: 'repeating-linear-gradient(45deg, #fff 0, #fff 1px, transparent 0, transparent 50%)', backgroundSize: '20px 20px' }} />
+          style={{ backgroundImage: 'repeating-linear-gradient(45deg,#fff 0,#fff 1px,transparent 0,transparent 50%)', backgroundSize: '20px 20px' }} />
         <div className="relative text-center">
-          <p className="text-[10px] tracking-[0.4em] text-[#8a6a5a] uppercase mb-5">Welcome to</p>
-          <h1 className="font-serif text-4xl font-bold text-[#f0e0d0] mb-4 tracking-wide">Villa Palma</h1>
+          <p className="text-[10px] tracking-[0.4em] text-[#8a6a5a] uppercase mb-5">Staff Portal</p>
+          <h1 className="font-serif text-4xl font-bold text-[#f0e0d0] mb-4 tracking-wide">Cabalum Hotel</h1>
           <div className="w-16 h-px bg-[#b85c38] mx-auto mb-5" />
           <p className="text-[#7a5040] text-sm leading-relaxed max-w-[220px] mx-auto">
-            A boutique experience where every detail is crafted for your comfort.
+            Hotel management system for authorised staff only.
           </p>
         </div>
       </div>
@@ -45,14 +44,13 @@ export default function LoginPage() {
       {/* Right form panel */}
       <div className="flex-1 flex items-center justify-center bg-cream px-8 py-12">
         <div className="w-full max-w-sm">
-          {/* Mobile logo */}
           <div className="lg:hidden text-center mb-10">
-            <h1 className="font-serif text-3xl font-bold text-brown tracking-wide">Villa Palma</h1>
+            <h1 className="font-serif text-3xl font-bold text-brown tracking-wide">Cabalum Hotel</h1>
             <div className="w-10 h-px bg-terra mx-auto mt-3" />
           </div>
 
-          <h2 className="text-2xl font-serif font-semibold text-brown mb-1">Sign In</h2>
-          <p className="text-sm text-brown-light mb-8">Access your guest portal</p>
+          <h2 className="text-2xl font-serif font-semibold text-brown mb-1">Admin Sign In</h2>
+          <p className="text-sm text-brown-light mb-8">Authorised personnel only</p>
 
           <form onSubmit={handleLogin} className="space-y-5">
             <div>
@@ -64,7 +62,8 @@ export default function LoginPage() {
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 required
-                placeholder="you@example.com"
+                autoComplete="email"
+                placeholder="staff@cabalumhotel.com"
                 className="w-full border border-warm-border rounded-lg px-4 py-2.5 text-sm bg-white text-brown placeholder-brown-light focus:outline-none focus:ring-2 focus:ring-terra focus:border-terra transition-colors"
               />
             </div>
@@ -77,6 +76,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 required
+                autoComplete="current-password"
                 placeholder="••••••••"
                 className="w-full border border-warm-border rounded-lg px-4 py-2.5 text-sm bg-white text-brown placeholder-brown-light focus:outline-none focus:ring-2 focus:ring-terra focus:border-terra transition-colors"
               />
@@ -97,11 +97,8 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <p className="text-center text-sm mt-6 text-brown-light">
-            New guest?{' '}
-            <Link href="/signup" className="text-terra hover:text-terra-dark font-medium transition-colors">
-              Create an account
-            </Link>
+          <p className="text-center text-xs mt-8 text-brown-light">
+            Access is managed by your administrator.
           </p>
         </div>
       </div>
