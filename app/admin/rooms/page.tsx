@@ -185,6 +185,18 @@ export default function AdminRoomsPage() {
               <input value={typeForm.amenities} onChange={e => setTypeForm(f => ({ ...f, amenities: e.target.value }))}
                 className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="e.g. AC, TV, Hot shower, WiFi" />
             </div>
+            <div className="col-span-2 sm:col-span-3">
+              <label className="block text-xs font-medium mb-1">Image URL</label>
+              <div className="flex gap-2 items-start">
+                <input value={typeForm.image_url} onChange={e => setTypeForm(f => ({ ...f, image_url: e.target.value }))}
+                  className="flex-1 border rounded-lg px-3 py-2 text-sm" placeholder="https://..." />
+                {typeForm.image_url && (
+                  <img src={typeForm.image_url} alt="preview"
+                    className="w-16 h-12 object-cover rounded-lg border border-warm-border flex-shrink-0"
+                    onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                )}
+              </div>
+            </div>
             <div className="col-span-2 sm:col-span-3 flex gap-2">
               <button type="submit" className="bg-terra text-white px-4 py-2 rounded-lg text-sm hover:bg-terra-dark transition-colors">
                 {typeEditId ? 'Update Type' : 'Add Type'}
@@ -198,14 +210,19 @@ export default function AdminRoomsPage() {
         <div className="overflow-x-auto rounded-xl border border-warm-border">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-left">
-              <tr>{['Type', 'Base Price', 'Capacity', 'Amenities', 'Actions'].map(h =>
+              <tr>{['Image', 'Type', 'Base Price', 'Capacity', 'Amenities', 'Actions'].map(h =>
                 <th key={h} className="px-4 py-2.5 font-medium text-gray-500 whitespace-nowrap">{h}</th>)}
               </tr>
             </thead>
             <tbody className="divide-y bg-white">
-              {types.length === 0 && <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400">No room types yet.</td></tr>}
+              {types.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">No room types yet.</td></tr>}
               {types.map(t => (
                 <tr key={t.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3">
+                    {t.image_url
+                      ? <img src={t.image_url} alt={t.name} className="w-14 h-10 object-cover rounded-lg border border-warm-border" />
+                      : <div className="w-14 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-gray-300 text-xs">No img</div>}
+                  </td>
                   <td className="px-4 py-3 font-medium text-brown">{t.name}</td>
                   <td className="px-4 py-3">₱{Number(t.base_price).toLocaleString('en-PH')}</td>
                   <td className="px-4 py-3">{t.capacity} pax</td>
