@@ -74,7 +74,7 @@ function ReservationsContent() {
         .select('id, check_in_date, check_out_date, nights, total_amount, status, notes, rooms(room_number, room_types(name))')
         .eq('guest_id', guest.id)
         .order('check_in_date', { ascending: false })
-      setReservations((res as Reservation[]) ?? [])
+      setReservations((res as unknown as Reservation[]) ?? [])
     }
     setLoading(false)
   }, [supabase])

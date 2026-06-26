@@ -139,6 +139,15 @@ export default function AdminUsersPage() {
           role:          form.role,
           department_id: form.department_id || null,
         }).eq('id', newId)
+
+        if (form.role === 'guest') {
+          await supabase.from('guests').insert({
+            profile_id: newId,
+            full_name:  form.full_name || null,
+            email:      form.email,
+            phone:      form.phone || null,
+          })
+        }
       }
       flash('User created. They can now sign in.')
     }
