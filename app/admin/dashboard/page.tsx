@@ -18,6 +18,13 @@ type KPIs = {
   inventoryValue: number
   deptExpenses: { name: string; total: number }[]
   revenueByDay: { date: string; revenue: number }[]
+  // Enterprise metrics
+  checkInsToday: number
+  checkOutsToday: number
+  pendingReservations: number
+  newContacts: number
+  pendingReviews: number
+  activePromotions: number
 }
 
 function currency(n: number) {
@@ -72,6 +79,12 @@ export default function AdminDashboardPage() {
       { data: depts },
       { data: monthExp },
       { data: invItems },
+      { count: newContacts },
+      { count: pendingReviews },
+      { count: checkInsToday },
+      { count: checkOutsToday },
+      { count: pendingReservations },
+      { count: activePromotions },
     ] = await Promise.all([
       supabase.from('rooms').select('status'),
       supabase.from('guests').select('id', { count: 'exact' }),
@@ -81,6 +94,12 @@ export default function AdminDashboardPage() {
       supabase.from('departments').select('id, name').order('name'),
       supabase.from('expenses').select('department_id, amount').gte('expense_date', monthStart),
       supabase.from('inventory_items').select('quantity_on_hand, reorder_threshold, unit_cost'),
+      supabase.from('contact_inquiries').select('*', { count: 'exact', head: true }).eq('status', 'new'),
+      supabase.from('reviews').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+      supabase.from('reservations').select('*', { count: 'exact', head: true }).eq('check_in_date', today),
+      supabase.from('reservations').select('*', { count: 'exact', head: true }).eq('check_out_date', today),
+      supabase.from('reservations').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+      supabase.from('promotions').select('*', { count: 'exact', head: true }).eq('is_active', true),
     ])
 
     const roomList = rooms ?? []
@@ -118,6 +137,12 @@ export default function AdminDashboardPage() {
       totalGuests: guests?.length ?? 0,
       revenueToday, revenueThisMonth, expensesThisMonth,
       lowStockCount, inventoryValue, deptExpenses, revenueByDay,
+      checkInsToday: checkInsToday ?? 0,
+      checkOutsToday: checkOutsToday ?? 0,
+      pendingReservations: pendingReservations ?? 0,
+      newContacts: newContacts ?? 0,
+      pendingReviews: pendingReviews ?? 0,
+      activePromotions: activePromotions ?? 0,
     })
     setLoading(false)
   }, [supabase])
@@ -180,6 +205,38 @@ export default function AdminDashboardPage() {
           <StatCard label="Registered Guests"  value={String(kpis.totalGuests)} />
           <StatCard label="Low Stock Items"     value={String(kpis.lowStockCount)} warn={kpis.lowStockCount > 0} sub="at or below threshold" />
           <StatCard label="Inventory Value"     value={currency(kpis.inventoryValue)} />
+        </div>
+      </section>
+
+      {/* ── Today's Activity ── */}
+      <section>
+        <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Today's Activity</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <a href="/admin/reservations" className="block">
+            <StatCard label="Check-ins Today"     value={String(kpis.checkInsToday)}     accent={kpis.checkInsToday > 0} sub="arriving guests" />
+          </a>
+          <a href="/admin/reservations" className="block">
+            <StatCard label="Check-outs Today"    value={String(kpis.checkOutsToday)}    sub="departing guests" />
+          </a>
+          <a href="/admin/reservations" className="block">
+            <StatCard label="Pending Reservations" value={String(kpis.pendingReservations)} warn={kpis.pendingReservations > 0} sub="awaiting confirmation" />
+          </a>
+        </div>
+      </section>
+
+      {/* ── Content & Engagement ── */}
+      <section>
+        <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Content &amp; Engagement</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <a href="/admin/contacts" className="block">
+            <StatCard label="New Inquiries"    value={String(kpis.newContacts)}    warn={kpis.newContacts > 0} sub="unread contact messages" />
+          </a>
+          <a href="/admin/reviews" className="block">
+            <StatCard label="Pending Reviews"  value={String(kpis.pendingReviews)} warn={kpis.pendingReviews > 0} sub="awaiting moderation" />
+          </a>
+          <a href="/admin/promotions" className="block">
+            <StatCard label="Active Promotions" value={String(kpis.activePromotions)} accent={kpis.activePromotions > 0} sub="live promo codes" />
+          </a>
         </div>
       </section>
 

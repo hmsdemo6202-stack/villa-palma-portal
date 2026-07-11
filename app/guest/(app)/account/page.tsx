@@ -1,23 +1,49 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 export default function GuestAccountPage() {
   const router = useRouter()
   const supabase = createClient()
-  const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
+  const [fullName, setFullName] = useState('')
+  const [phone, setPhone] = useState('')
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState('')
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return
-      setEmail(user.email ?? '')
-      supabase.from('profiles').select('full_name').eq('id', user.id).single()
-        .then(({ data }) => { setFullName(data?.full_name ?? ''); setLoading(false) })
-    })
+  const load = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setLoading(false); return }
+    setEmail(user.email ?? '')
+    const { data } = await supabase
+      .from('profiles')
+      .select('full_name, phone')
+      .eq('id', user.id)
+      .maybeSingle()
+    if (data) {
+      setFullName(data.full_name ?? '')
+      setPhone(data.phone ?? '')
+    }
+    setLoading(false)
   }, [supabase])
+
+  useEffect(() => { load() }, [load])
+
+  async function save() {
+    if (!fullName.trim()) { setError('Full name is required.'); return }
+    setSaving(true); setError(''); setSaved(false)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setSaving(false); return }
+    const { error: err } = await supabase
+      .from('profiles')
+      .update({ full_name: fullName.trim(), phone: phone.trim() || null })
+      .eq('id', user.id)
+    setSaving(false)
+    if (err) { setError(err.message) } else { setSaved(true); load() }
+  }
 
   async function signOut() {
     await supabase.auth.signOut()
@@ -34,7 +60,7 @@ export default function GuestAccountPage() {
       </div>
 
       <div className="p-5 space-y-4">
-        {/* Profile card */}
+        {/* Avatar + name */}
         <div className="bg-white border border-[#e8d5c8] rounded-2xl p-5">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#b85c38] to-[#3d2018] flex items-center justify-center text-white text-2xl font-bold shrink-0">
@@ -48,6 +74,52 @@ export default function GuestAccountPage() {
               </span>
             </div>
           </div>
+        </div>
+
+        {/* Edit profile */}
+        <div className="bg-white border border-[#e8d5c8] rounded-2xl p-5 space-y-4">
+          <h2 className="font-semibold text-[#3d2018]">Profile Information</h2>
+
+          <div>
+            <label className="block text-xs font-medium text-[#7a5040] uppercase tracking-wide mb-1.5">Full Name</label>
+            <input
+              type="text"
+              value={fullName}
+              onChange={e => setFullName(e.target.value)}
+              placeholder="Your full name"
+              className="w-full border border-[#e8d5c8] rounded-xl px-4 py-3 text-sm text-[#3d2018] focus:outline-none focus:ring-2 focus:ring-[#b85c38]/30 focus:border-[#b85c38]"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-[#7a5040] uppercase tracking-wide mb-1.5">Email Address</label>
+            <div className="w-full border border-[#e8d5c8] rounded-xl px-4 py-3 text-sm text-[#9d8a80] bg-[#faf6f0]">
+              {email}
+            </div>
+            <p className="text-xs text-[#b0a098] mt-1">Contact reception to change your email.</p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-[#7a5040] uppercase tracking-wide mb-1.5">Phone Number</label>
+            <input
+              type="tel"
+              value={phone}
+              onChange={e => setPhone(e.target.value)}
+              placeholder="+63 9XX XXX XXXX"
+              className="w-full border border-[#e8d5c8] rounded-xl px-4 py-3 text-sm text-[#3d2018] focus:outline-none focus:ring-2 focus:ring-[#b85c38]/30 focus:border-[#b85c38]"
+            />
+          </div>
+
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          {saved && <p className="text-sm text-green-700">Profile updated successfully.</p>}
+
+          <button
+            onClick={save}
+            disabled={saving || loading}
+            className="w-full bg-[#b85c38] text-white py-3.5 rounded-xl font-semibold text-sm hover:bg-[#a0502f] transition-colors disabled:opacity-50"
+          >
+            {saving ? 'Saving…' : 'Save Changes'}
+          </button>
         </div>
 
         {/* Hotel info */}
@@ -65,14 +137,14 @@ export default function GuestAccountPage() {
               <span className="text-base shrink-0">📞</span>
               <div>
                 <p className="font-medium text-[#3d2018]">Front Desk</p>
-                <p>Dial 0 from your room phone for assistance</p>
+                <p>(033) 320-1234 · Open 24/7</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
               <span className="text-base shrink-0">🍽</span>
               <div>
-                <p className="font-medium text-[#3d2018]">Room Service</p>
-                <p>Available daily · Order from the Order tab</p>
+                <p className="font-medium text-[#3d2018]">Restaurant Hours</p>
+                <p>Breakfast 6–10 AM · Lunch 11:30 AM–2 PM · Dinner 6–10 PM</p>
               </div>
             </div>
             <div className="flex items-start gap-3">

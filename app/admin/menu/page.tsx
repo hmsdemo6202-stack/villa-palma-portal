@@ -2,19 +2,20 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
-type Category = { id: string; name: string }
-type MenuItem = {
+type Category = { id: string; name: string; department_id: string | null }
+type PosItem = {
   id: string
   category_id: string
   name: string
   description: string
   price: number
+  cost: number
   image_url: string
   is_available: boolean
 }
 
-const emptyItem: Omit<MenuItem, 'id'> = {
-  category_id: '', name: '', description: '', price: 0, image_url: '', is_available: true
+const emptyItem: Omit<PosItem, 'id'> = {
+  category_id: '', name: '', description: '', price: 0, cost: 0, image_url: '', is_available: true,
 }
 
 export default function AdminMenuPage() {
@@ -25,32 +26,38 @@ export default function AdminMenuPage() {
   const [catEditId, setCatEditId] = useState<string | null>(null)
   const [showCatForm, setShowCatForm] = useState(false)
 
-  const [items, setItems] = useState<MenuItem[]>([])
-  const [itemForm, setItemForm] = useState<Omit<MenuItem, 'id'>>(emptyItem)
+  const [items, setItems] = useState<PosItem[]>([])
+  const [itemForm, setItemForm] = useState<Omit<PosItem, 'id'>>(emptyItem)
   const [itemEditId, setItemEditId] = useState<string | null>(null)
   const [showItemForm, setShowItemForm] = useState(false)
 
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
 
   const loadCategories = useCallback(async () => {
-    const { data } = await supabase.from('menu_categories').select('*').order('name')
+    const { data } = await supabase.from('pos_categories').select('*').order('sort_order').order('name')
     setCategories(data ?? [])
   }, [supabase])
 
   const loadItems = useCallback(async () => {
-    const { data } = await supabase.from('menu_items').select('*').order('name')
+    const { data } = await supabase.from('pos_items').select('*').order('name')
     setItems(data ?? [])
   }, [supabase])
 
   useEffect(() => { loadCategories(); loadItems() }, [loadCategories, loadItems])
 
+  function flash(msg: string, ok = true) {
+    if (ok) { setSuccess(msg); setError(null) } else { setError(msg); setSuccess(null) }
+    setTimeout(() => { setSuccess(null); setError(null) }, 4000)
+  }
+
   async function saveCategory(e: React.FormEvent) {
     e.preventDefault()
-    setError(null)
     const { error: err } = catEditId
-      ? await supabase.from('menu_categories').update(catForm).eq('id', catEditId)
-      : await supabase.from('menu_categories').insert(catForm)
-    if (err) { setError(err.message); return }
+      ? await supabase.from('pos_categories').update({ name: catForm.name }).eq('id', catEditId)
+      : await supabase.from('pos_categories').insert({ name: catForm.name })
+    if (err) { flash(err.message, false); return }
+    flash(catEditId ? 'Category updated.' : 'Category added.')
     setCatForm({ name: '' }); setCatEditId(null); setShowCatForm(false)
     loadCategories()
   }
@@ -60,30 +67,32 @@ export default function AdminMenuPage() {
   }
 
   async function deleteCategory(id: string) {
-    if (!confirm('Delete this category? Menu items in it will lose their category.')) return
-    const { error: err } = await supabase.from('menu_categories').delete().eq('id', id)
-    if (err) { setError(err.message); return }
+    if (!confirm('Delete this category? Items in it will lose their category link.')) return
+    const { error: err } = await supabase.from('pos_categories').delete().eq('id', id)
+    if (err) { flash(err.message, false); return }
+    flash('Category deleted.')
     loadCategories()
   }
 
   async function saveItem(e: React.FormEvent) {
     e.preventDefault()
-    setError(null)
-    const payload = { ...itemForm, price: Number(itemForm.price) }
+    const payload = { ...itemForm, price: Number(itemForm.price), cost: Number(itemForm.cost) }
     const { error: err } = itemEditId
-      ? await supabase.from('menu_items').update(payload).eq('id', itemEditId)
-      : await supabase.from('menu_items').insert(payload)
-    if (err) { setError(err.message); return }
+      ? await supabase.from('pos_items').update(payload).eq('id', itemEditId)
+      : await supabase.from('pos_items').insert(payload)
+    if (err) { flash(err.message, false); return }
+    flash(itemEditId ? 'Item updated.' : 'Item added.')
     setItemForm(emptyItem); setItemEditId(null); setShowItemForm(false)
     loadItems()
   }
 
-  function editItem(item: MenuItem) {
+  function editItem(item: PosItem) {
     setItemForm({
       category_id: item.category_id,
       name: item.name,
       description: item.description ?? '',
       price: item.price,
+      cost: item.cost ?? 0,
       image_url: item.image_url ?? '',
       is_available: item.is_available,
     })
@@ -92,86 +101,94 @@ export default function AdminMenuPage() {
 
   async function deleteItem(id: string) {
     if (!confirm('Delete this menu item?')) return
-    const { error: err } = await supabase.from('menu_items').delete().eq('id', id)
-    if (err) { setError(err.message); return }
+    const { error: err } = await supabase.from('pos_items').delete().eq('id', id)
+    if (err) { flash(err.message, false); return }
+    flash('Item deleted.')
     loadItems()
+  }
+
+  async function toggleAvail(id: string, current: boolean) {
+    const { error: err } = await supabase.from('pos_items').update({ is_available: !current }).eq('id', id)
+    if (!err) loadItems()
   }
 
   const categoryById = Object.fromEntries(categories.map(c => [c.id, c.name]))
 
   return (
-    <div className="space-y-10">
-      <h1 className="text-2xl font-bold">Menu</h1>
-      {error && <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded p-3">{error}</p>}
+    <div className="space-y-10 max-w-5xl">
+      <h1 className="text-2xl font-bold text-brown">Menu</h1>
 
-      {/* Categories */}
+      {error   && <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">{error}</div>}
+      {success && <div className="bg-green-50 border border-green-200 text-green-700 rounded-lg px-4 py-3 text-sm">{success}</div>}
+
+      {/* ── Categories ── */}
       <section>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold">Categories</h2>
+          <h2 className="text-lg font-semibold text-brown">Categories</h2>
           <button onClick={() => { setCatForm({ name: '' }); setCatEditId(null); setShowCatForm(v => !v) }}
-            className="text-sm bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700">
+            className="text-sm bg-terra text-white px-3 py-1.5 rounded-lg hover:bg-terra-dark transition-colors">
             {showCatForm && !catEditId ? 'Cancel' : '+ Add Category'}
           </button>
         </div>
 
         {showCatForm && (
-          <form onSubmit={saveCategory} className="mb-4 bg-gray-50 border rounded-lg p-4 flex gap-3 items-end">
+          <form onSubmit={saveCategory} className="mb-4 bg-white border border-warm-border rounded-xl p-4 flex gap-3 items-end">
             <div className="flex-1">
               <label className="block text-xs font-medium mb-1">Category Name *</label>
-              <input required value={catForm.name}
-                onChange={e => setCatForm({ name: e.target.value })}
-                className="w-full border rounded px-3 py-2 text-sm" placeholder="e.g. Main Course" />
+              <input required value={catForm.name} onChange={e => setCatForm({ name: e.target.value })}
+                className="w-full border border-warm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-terra focus:outline-none"
+                placeholder="e.g. Main Course, Beverages" />
             </div>
-            <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
+            <button type="submit" className="bg-terra text-white px-4 py-2 rounded-lg text-sm hover:bg-terra-dark transition-colors">
               {catEditId ? 'Update' : 'Add'}
             </button>
-            <button type="button" onClick={() => { setShowCatForm(false); setCatEditId(null); setCatForm({ name: '' }) }}
-              className="border px-4 py-2 rounded text-sm hover:bg-gray-100">Cancel</button>
+            <button type="button" onClick={() => { setShowCatForm(false); setCatEditId(null) }}
+              className="border border-warm-border px-4 py-2 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
           </form>
         )}
 
         <div className="flex flex-wrap gap-2">
           {categories.length === 0 && <p className="text-sm text-gray-400">No categories yet.</p>}
           {categories.map(c => (
-            <div key={c.id} className="flex items-center gap-1 bg-gray-100 rounded-full pl-3 pr-1 py-1 text-sm">
+            <div key={c.id} className="flex items-center gap-1 bg-[#fdf0eb] text-terra rounded-full pl-3 pr-1 py-1 text-sm border border-[#f0c8a0]">
               <span>{c.name}</span>
-              <button onClick={() => editCategory(c)} className="text-blue-600 hover:underline text-xs px-1">Edit</button>
-              <button onClick={() => deleteCategory(c.id)} className="text-red-500 hover:text-red-700 text-xs px-1">×</button>
+              <button onClick={() => editCategory(c)} className="hover:underline text-xs px-1.5">Edit</button>
+              <button onClick={() => deleteCategory(c.id)} className="text-red-400 hover:text-red-600 text-xs px-1">×</button>
             </div>
           ))}
         </div>
       </section>
 
-      {/* Menu Items */}
+      {/* ── Menu Items ── */}
       <section>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold">Menu Items</h2>
+          <h2 className="text-lg font-semibold text-brown">Menu Items</h2>
           <button onClick={() => { setItemForm(emptyItem); setItemEditId(null); setShowItemForm(v => !v) }}
-            className="text-sm bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700"
+            className="text-sm bg-terra text-white px-3 py-1.5 rounded-lg hover:bg-terra-dark transition-colors"
             disabled={categories.length === 0}>
             {showItemForm && !itemEditId ? 'Cancel' : '+ Add Item'}
           </button>
         </div>
+
         {categories.length === 0 && (
-          <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded p-3 mb-3">
-            Add at least one category above before creating menu items.
+          <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-3">
+            Add at least one category before creating menu items.
           </p>
         )}
 
         {showItemForm && (
-          <form onSubmit={saveItem} className="mb-4 bg-gray-50 border rounded-lg p-4 grid grid-cols-2 gap-3">
+          <form onSubmit={saveItem} className="mb-4 bg-white border border-warm-border rounded-xl p-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
             <div>
               <label className="block text-xs font-medium mb-1">Name *</label>
-              <input required value={itemForm.name}
-                onChange={e => setItemForm(f => ({ ...f, name: e.target.value }))}
-                className="w-full border rounded px-3 py-2 text-sm" placeholder="e.g. Grilled Salmon" />
+              <input required value={itemForm.name} onChange={e => setItemForm(f => ({ ...f, name: e.target.value }))}
+                className="w-full border border-warm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-terra focus:outline-none"
+                placeholder="e.g. Grilled Bangus" />
             </div>
             <div>
               <label className="block text-xs font-medium mb-1">Category *</label>
-              <select required value={itemForm.category_id}
-                onChange={e => setItemForm(f => ({ ...f, category_id: e.target.value }))}
-                className="w-full border rounded px-3 py-2 text-sm">
-                <option value="">Select category…</option>
+              <select required value={itemForm.category_id} onChange={e => setItemForm(f => ({ ...f, category_id: e.target.value }))}
+                className="w-full border border-warm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-terra focus:outline-none">
+                <option value="">— Select —</option>
                 {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
@@ -179,66 +196,81 @@ export default function AdminMenuPage() {
               <label className="block text-xs font-medium mb-1">Price (₱) *</label>
               <input required type="number" min={0} step="0.01" value={itemForm.price}
                 onChange={e => setItemForm(f => ({ ...f, price: +e.target.value }))}
-                className="w-full border rounded px-3 py-2 text-sm" />
+                className="w-full border border-warm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-terra focus:outline-none" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1">Cost (₱)</label>
+              <input type="number" min={0} step="0.01" value={itemForm.cost}
+                onChange={e => setItemForm(f => ({ ...f, cost: +e.target.value }))}
+                className="w-full border border-warm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-terra focus:outline-none"
+                placeholder="Cost to hotel" />
             </div>
             <div>
               <label className="block text-xs font-medium mb-1">Image URL</label>
-              <input value={itemForm.image_url}
-                onChange={e => setItemForm(f => ({ ...f, image_url: e.target.value }))}
-                className="w-full border rounded px-3 py-2 text-sm" placeholder="https://..." />
+              <input value={itemForm.image_url} onChange={e => setItemForm(f => ({ ...f, image_url: e.target.value }))}
+                className="w-full border border-warm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-terra focus:outline-none"
+                placeholder="https://..." />
             </div>
-            <div className="col-span-2">
+            <div className="col-span-2 sm:col-span-3">
               <label className="block text-xs font-medium mb-1">Description</label>
-              <textarea value={itemForm.description}
-                onChange={e => setItemForm(f => ({ ...f, description: e.target.value }))}
-                rows={2} className="w-full border rounded px-3 py-2 text-sm" />
+              <input value={itemForm.description} onChange={e => setItemForm(f => ({ ...f, description: e.target.value }))}
+                className="w-full border border-warm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-terra focus:outline-none"
+                placeholder="Short description visible to guests" />
             </div>
-            <div className="col-span-2 flex items-center gap-2">
-              <input type="checkbox" id="available" checked={itemForm.is_available}
+            <div className="col-span-2 sm:col-span-3 flex items-center gap-2">
+              <input type="checkbox" id="avail" checked={itemForm.is_available}
                 onChange={e => setItemForm(f => ({ ...f, is_available: e.target.checked }))}
                 className="rounded" />
-              <label htmlFor="available" className="text-sm">Available (visible to students)</label>
+              <label htmlFor="avail" className="text-sm text-gray-600">Available (visible to guests)</label>
             </div>
-            <div className="col-span-2 flex gap-2">
-              <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
+            <div className="col-span-2 sm:col-span-3 flex gap-2">
+              <button type="submit" className="bg-terra text-white px-4 py-2 rounded-lg text-sm hover:bg-terra-dark transition-colors">
                 {itemEditId ? 'Update Item' : 'Add Item'}
               </button>
               <button type="button" onClick={() => { setShowItemForm(false); setItemEditId(null); setItemForm(emptyItem) }}
-                className="border px-4 py-2 rounded text-sm hover:bg-gray-100">Cancel</button>
+                className="border border-warm-border px-4 py-2 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
             </div>
           </form>
         )}
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm border rounded-lg overflow-hidden">
-            <thead className="bg-gray-100 text-left">
-              <tr>
-                {['Name', 'Category', 'Price', 'Available', ''].map(h => (
-                  <th key={h} className="px-4 py-2 font-medium text-gray-600">{h}</th>
-                ))}
+        <div className="overflow-x-auto rounded-xl border border-warm-border">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 text-left">
+              <tr>{['Name', 'Category', 'Price', 'Cost', 'Margin', 'Available', 'Actions'].map(h =>
+                <th key={h} className="px-4 py-2.5 font-medium text-gray-500 whitespace-nowrap">{h}</th>)}
               </tr>
             </thead>
-            <tbody className="divide-y">
-              {items.length === 0 && (
-                <tr><td colSpan={5} className="px-4 py-6 text-center text-gray-400">No menu items yet.</td></tr>
-              )}
-              {items.map(item => (
-                <tr key={item.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-2 font-medium">{item.name}</td>
-                  <td className="px-4 py-2 text-gray-500">{categoryById[item.category_id] ?? '—'}</td>
-                  <td className="px-4 py-2">₱{Number(item.price).toLocaleString()}</td>
-                  <td className="px-4 py-2">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                      item.is_available ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                      {item.is_available ? 'Yes' : 'No'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2 text-right space-x-2">
-                    <button onClick={() => editItem(item)} className="text-blue-600 hover:underline text-xs">Edit</button>
-                    <button onClick={() => deleteItem(item.id)} className="text-red-500 hover:underline text-xs">Delete</button>
-                  </td>
-                </tr>
-              ))}
+            <tbody className="divide-y bg-white">
+              {items.length === 0 && <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">No menu items yet.</td></tr>}
+              {items.map(item => {
+                const margin = item.cost > 0 ? Math.round(((item.price - item.cost) / item.price) * 100) : null
+                return (
+                  <tr key={item.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-4 py-3 font-medium text-brown">{item.name}</td>
+                    <td className="px-4 py-3 text-gray-500">{categoryById[item.category_id] ?? '—'}</td>
+                    <td className="px-4 py-3 font-semibold">₱{Number(item.price).toLocaleString('en-PH')}</td>
+                    <td className="px-4 py-3 text-gray-500">{item.cost > 0 ? `₱${Number(item.cost).toLocaleString('en-PH')}` : '—'}</td>
+                    <td className="px-4 py-3">
+                      {margin !== null
+                        ? <span className={`text-xs font-medium ${margin >= 60 ? 'text-green-700' : margin >= 40 ? 'text-amber-600' : 'text-red-600'}`}>{margin}%</span>
+                        : <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="px-4 py-3">
+                      <button onClick={() => toggleAvail(item.id, item.is_available)}
+                        className={`text-xs px-2.5 py-0.5 rounded-full font-medium cursor-pointer ${
+                          item.is_available ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                        {item.is_available ? 'Available' : 'Hidden'}
+                      </button>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-2">
+                        <button onClick={() => editItem(item)} className="text-xs border text-blue-600 px-2.5 py-1 rounded-lg hover:bg-blue-50">Edit</button>
+                        <button onClick={() => deleteItem(item.id)} className="text-xs text-red-500 hover:underline">Delete</button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>

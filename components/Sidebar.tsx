@@ -5,16 +5,31 @@ import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 const NAV = [
-  { href: '/admin/dashboard',   label: 'Dashboard',    icon: '▦' },
-  { href: '/admin/rooms',       label: 'Rooms',         icon: '⊞' },
-  { href: '/admin/guests',      label: 'Guests',        icon: '👤' },
-  { href: '/admin/reservations',label: 'Reservations',  icon: '📅' },
-  { href: '/admin/pos',         label: 'POS Items',     icon: '🏷' },
-  { href: '/admin/inventory',   label: 'Inventory',     icon: '📦' },
-  { href: '/admin/expenses',    label: 'Expenses',      icon: '💳' },
-  { href: '/admin/departments', label: 'Departments',   icon: '🏢' },
-  { href: '/admin/users',       label: 'Users',         icon: '👥' },
+  // Core operations
+  { href: '/admin/dashboard',   label: 'Dashboard',    icon: '▦', group: 'Core' },
+  { href: '/admin/rooms',       label: 'Rooms',         icon: '⊞', group: 'Core' },
+  { href: '/admin/guests',      label: 'Guests',        icon: '👤', group: 'Core' },
+  { href: '/admin/reservations',label: 'Reservations',  icon: '📅', group: 'Core' },
+  // Restaurant
+  { href: '/admin/menu',        label: 'Menu',          icon: '🍽', group: 'Restaurant' },
+  { href: '/admin/orders',      label: 'Orders',        icon: '🧾', group: 'Restaurant' },
+  // Financials
+  { href: '/admin/payments',    label: 'Payments',      icon: '💰', group: 'Financials' },
+  { href: '/admin/pos',         label: 'POS Items',     icon: '🏷', group: 'Financials' },
+  { href: '/admin/inventory',   label: 'Inventory',     icon: '📦', group: 'Financials' },
+  { href: '/admin/expenses',    label: 'Expenses',      icon: '💳', group: 'Financials' },
+  // Website content
+  { href: '/admin/gallery',     label: 'Gallery',       icon: '🖼', group: 'Content' },
+  { href: '/admin/promotions',  label: 'Promotions',    icon: '🏷️', group: 'Content' },
+  { href: '/admin/reviews',     label: 'Reviews',       icon: '⭐', group: 'Content' },
+  { href: '/admin/faqs',        label: 'FAQs',          icon: '❓', group: 'Content' },
+  { href: '/admin/contacts',    label: 'Contacts',      icon: '📬', group: 'Content' },
+  // Admin
+  { href: '/admin/departments', label: 'Departments',   icon: '🏢', group: 'Admin' },
+  { href: '/admin/users',       label: 'Users',         icon: '👥', group: 'Admin' },
 ]
+
+const GROUPS = ['Core', 'Restaurant', 'Financials', 'Content', 'Admin']
 
 interface SidebarProps {
   fullName: string
@@ -48,22 +63,30 @@ export default function Sidebar({ fullName, role }: SidebarProps) {
       </div>
 
       {/* Nav links */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        {NAV.map(({ href, label, icon }) => (
-          <Link
-            key={href}
-            href={href}
-            onClick={() => setOpen(false)}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
-              isActive(href)
-                ? 'bg-terra text-white font-semibold'
-                : 'text-[#c8a898] hover:bg-[#3d2418] hover:text-[#f0e0d0]'
-            }`}
-          >
-            <span className="text-base w-5 text-center shrink-0">{icon}</span>
-            {label}
-          </Link>
-        ))}
+      <nav className="flex-1 px-3 py-4 overflow-y-auto">
+        {GROUPS.map(group => {
+          const links = NAV.filter(n => n.group === group)
+          return (
+            <div key={group} className="mb-3">
+              <p className="text-[9px] uppercase tracking-[0.2em] text-[#5a3a2a] px-3 mb-1 mt-2">{group}</p>
+              {links.map(({ href, label, icon }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={() => setOpen(false)}
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                    isActive(href)
+                      ? 'bg-terra text-white font-semibold'
+                      : 'text-[#c8a898] hover:bg-[#3d2418] hover:text-[#f0e0d0]'
+                  }`}
+                >
+                  <span className="text-base w-5 text-center shrink-0">{icon}</span>
+                  {label}
+                </Link>
+              ))}
+            </div>
+          )
+        })}
       </nav>
 
       {/* User info + sign out */}
