@@ -141,26 +141,37 @@ export default function RoomPhotoManager({
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
             {images.map((img, i) => (
-              <div key={img.id} className="relative bg-gray-100 rounded-lg overflow-hidden border border-warm-border group">
-                <img src={img.image_url} alt={img.alt_text ?? ''} className="w-full h-28 object-cover" />
+              <div key={img.id} className="relative bg-gray-100 rounded-xl overflow-hidden border border-warm-border group">
+                <img src={img.image_url} alt={img.alt_text ?? ''} className="w-full h-32 object-cover" />
+
+                {/* Cover badge */}
                 {img.is_primary && (
-                  <span className="absolute top-1.5 left-1.5 text-[10px] bg-terra text-white px-1.5 py-0.5 rounded-full">Cover</span>
+                  <span className="absolute top-2 left-2 text-[10px] bg-terra text-white px-2 py-0.5 rounded-full font-medium">Cover</span>
                 )}
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 text-xs">
+
+                {/* Delete button — top-right, appears on image hover */}
+                <button
+                  onClick={() => handleDelete(img)}
+                  className="absolute top-2 right-2 w-7 h-7 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 shadow-md text-base leading-none"
+                  title="Delete photo"
+                >
+                  ×
+                </button>
+
+                {/* Bottom controls — appear on image hover */}
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-2 pb-2 pt-4 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-between">
                   <div className="flex gap-1">
                     <button onClick={() => move(i, -1)} disabled={i === 0}
-                      className="bg-white/90 px-1.5 py-0.5 rounded disabled:opacity-30">←</button>
+                      className="w-6 h-6 rounded bg-white/90 text-xs flex items-center justify-center disabled:opacity-30 hover:bg-white">‹</button>
                     <button onClick={() => move(i, 1)} disabled={i === images.length - 1}
-                      className="bg-white/90 px-1.5 py-0.5 rounded disabled:opacity-30">→</button>
+                      className="w-6 h-6 rounded bg-white/90 text-xs flex items-center justify-center disabled:opacity-30 hover:bg-white">›</button>
                   </div>
                   {!img.is_primary && (
-                    <button onClick={() => handleSetPrimary(img)} className="bg-white/90 px-2 py-0.5 rounded text-terra">
-                      Set as cover
+                    <button onClick={() => handleSetPrimary(img)}
+                      className="text-[10px] bg-white/90 hover:bg-white px-2 py-0.5 rounded text-terra font-medium">
+                      Set cover
                     </button>
                   )}
-                  <button onClick={() => handleDelete(img)} className="bg-white/90 px-2 py-0.5 rounded text-red-500">
-                    Delete
-                  </button>
                 </div>
               </div>
             ))}
