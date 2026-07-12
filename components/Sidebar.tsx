@@ -78,6 +78,15 @@ const SECTIONS: Section[] = [
     href: '/admin/reports',
   },
   {
+    id: 'website',
+    label: 'Website',
+    icon: '🌐',
+    links: [
+      { href: '/admin/website/settings', label: 'Site Settings' },
+      { href: '/admin/website/gallery',  label: 'Gallery' },
+    ],
+  },
+  {
     id: 'content',
     label: 'Content',
     icon: '🌐',

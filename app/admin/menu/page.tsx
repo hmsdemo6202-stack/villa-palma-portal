@@ -1,6 +1,8 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
+
+const MENU_BUCKET = 'menu-images'
 
 type Category = { id: string; name: string; department_id: string | null }
 type PosItem = {
@@ -33,6 +35,8 @@ export default function AdminMenuPage() {
 
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const menuImgRef = useRef<HTMLInputElement>(null)
 
   const loadCategories = useCallback(async () => {
     const { data } = await supabase.from('pos_categories').select('*').order('sort_order').order('name')
@@ -105,6 +109,17 @@ export default function AdminMenuPage() {
     if (err) { flash(err.message, false); return }
     flash('Item deleted.')
     loadItems()
+  }
+
+  async function uploadMenuImage(file: File) {
+    setUploading(true)
+    const ext  = file.name.split('.').pop() || 'jpg'
+    const path = `items/${crypto.randomUUID()}.${ext}`
+    const { error: upErr } = await supabase.storage.from(MENU_BUCKET).upload(path, file, { upsert: false })
+    if (upErr) { flash(upErr.message, false); setUploading(false); return }
+    const { data: pub } = supabase.storage.from(MENU_BUCKET).getPublicUrl(path)
+    setItemForm(f => ({ ...f, image_url: pub.publicUrl }))
+    setUploading(false)
   }
 
   async function toggleAvail(id: string, current: boolean) {
@@ -205,11 +220,29 @@ export default function AdminMenuPage() {
                 className="w-full border border-warm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-terra focus:outline-none"
                 placeholder="Cost to hotel" />
             </div>
-            <div>
-              <label className="block text-xs font-medium mb-1">Image URL</label>
-              <input value={itemForm.image_url} onChange={e => setItemForm(f => ({ ...f, image_url: e.target.value }))}
-                className="w-full border border-warm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-terra focus:outline-none"
-                placeholder="https://..." />
+            <div className="col-span-2 sm:col-span-3">
+              <label className="block text-xs font-medium mb-1">Photo</label>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => menuImgRef.current?.click()} disabled={uploading}
+                  className="shrink-0 border border-warm-border px-3 py-2 rounded-lg text-xs text-brown-mid hover:bg-gray-50 transition-colors disabled:opacity-50">
+                  {uploading ? 'Uploading…' : itemForm.image_url ? 'Replace Photo' : 'Upload Photo'}
+                </button>
+                <input value={itemForm.image_url} onChange={e => setItemForm(f => ({ ...f, image_url: e.target.value }))}
+                  className="flex-1 border border-warm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-terra focus:outline-none"
+                  placeholder="or paste a URL" />
+                {itemForm.image_url && (
+                  <button type="button" onClick={() => setItemForm(f => ({ ...f, image_url: '' }))}
+                    className="shrink-0 text-red-400 hover:text-red-600 text-xs px-2">✕ Remove</button>
+                )}
+              </div>
+              <input ref={menuImgRef} type="file" accept="image/*" className="hidden"
+                onChange={e => { const f = e.target.files?.[0]; if (f) uploadMenuImage(f); e.target.value = '' }} />
+              {itemForm.image_url && (
+                <div className="mt-2 h-24 w-24 rounded-lg overflow-hidden bg-gray-100 border border-warm-border">
+                  <img src={itemForm.image_url} alt="preview" className="w-full h-full object-cover"
+                    onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
+                </div>
+              )}
             </div>
             <div className="col-span-2 sm:col-span-3">
               <label className="block text-xs font-medium mb-1">Description</label>
