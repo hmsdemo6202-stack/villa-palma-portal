@@ -21,7 +21,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         .from('users')
         .select('username, full_name, role, is_active')
         .eq('id', user.id)
-        .single()
+        .maybeSingle()
 
       if (!staff || !staff.is_active) { router.replace('/login'); return }
 

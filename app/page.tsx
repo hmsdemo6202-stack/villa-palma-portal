@@ -15,7 +15,7 @@ export default function Home() {
         .from('users')
         .select('role, is_active')
         .eq('id', user.id)
-        .single()
+        .maybeSingle()
 
       if (staff?.is_active) {
         router.replace('/admin/dashboard')
