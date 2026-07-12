@@ -79,7 +79,7 @@ export default function ReportsPage() {
       .gte('check_in_date', start)
       .lte('check_in_date', end)
 
-    const list = (resList ?? []) as Array<{
+    const list = (resList ?? []) as unknown as Array<{
       id: string; status: string; total_amount: number | null; nights: number; check_in_date: string;
       rooms: { room_types: { name: string } | null } | null
     }>
