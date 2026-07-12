@@ -35,7 +35,7 @@ export default function LoginPage() {
         <div className="absolute inset-0 opacity-5"
           style={{ backgroundImage: 'repeating-linear-gradient(45deg,#fff 0,#fff 1px,transparent 0,transparent 50%)', backgroundSize: '20px 20px' }} />
         <div className="relative text-center">
-          <p className="text-[10px] tracking-[0.4em] text-[#8a6a5a] uppercase mb-5">Staff Portal</p>
+          <p className="text-[10px] tracking-[0.4em] text-[#8a6a5a] uppercase mb-5">Management Portal</p>
           <h1 className="font-serif text-4xl font-bold text-[#f0e0d0] mb-4 tracking-wide">Cabalum Hotel</h1>
           <div className="w-16 h-px bg-[#b85c38] mx-auto mb-5" />
           <p className="text-[#7a5040] text-sm leading-relaxed max-w-[220px] mx-auto">
@@ -52,8 +52,8 @@ export default function LoginPage() {
             <div className="w-10 h-px bg-terra mx-auto mt-3" />
           </div>
 
-          <h2 className="text-2xl font-serif font-semibold text-brown mb-1">Staff Sign In</h2>
-          <p className="text-sm text-brown-light mb-8">Authorised personnel only</p>
+          <h2 className="text-2xl font-serif font-semibold text-brown mb-1">Sign In</h2>
+          <p className="text-sm text-brown-light mb-8">Enter your username and password</p>
 
           <form onSubmit={handleLogin} className="space-y-5">
             <div>
@@ -101,7 +101,7 @@ export default function LoginPage() {
           </form>
 
           <p className="text-center text-xs mt-8 text-brown-light">
-            Access is managed by your administrator.
+            Contact your administrator if you need access.
           </p>
         </div>
       </div>
