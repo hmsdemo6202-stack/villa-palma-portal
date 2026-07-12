@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 
 export default function LoginPage() {
   const router = useRouter()
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -16,11 +16,11 @@ export default function LoginPage() {
     setError(null)
     const supabase = createClient()
     const { error: err } = await supabase.auth.signInWithPassword({
-      email: email.trim().toLowerCase(),
+      email: username.includes('@') ? username.trim().toLowerCase() : `${username.trim().toLowerCase()}@cabalum.internal`,
       password,
     })
     if (err) {
-      setError('Invalid email or password.')
+      setError('Invalid username or password.')
       setLoading(false)
     } else {
       router.push('/admin')
@@ -53,20 +53,20 @@ export default function LoginPage() {
           </div>
 
           <h2 className="text-2xl font-serif font-semibold text-brown mb-1">Sign In</h2>
-          <p className="text-sm text-brown-light mb-8">Enter your email and password</p>
+          <p className="text-sm text-brown-light mb-8">Enter your username and password</p>
 
           <form onSubmit={handleLogin} className="space-y-5">
             <div>
               <label className="block text-xs font-medium text-brown-mid uppercase tracking-wide mb-2">
-                Email
+                Username
               </label>
               <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
+                type="text"
+                value={username}
+                onChange={e => setUsername(e.target.value)}
                 required
-                autoComplete="email"
-                placeholder="you@example.com"
+                autoComplete="username"
+                placeholder="e.g. juan.reyes"
                 className="w-full border border-warm-border rounded-lg px-4 py-2.5 text-sm bg-white text-brown placeholder-brown-light focus:outline-none focus:ring-2 focus:ring-terra focus:border-terra transition-colors"
               />
             </div>
