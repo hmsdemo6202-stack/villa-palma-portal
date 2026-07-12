@@ -18,7 +18,7 @@ export default async function GuestAppLayout({ children }: { children: React.Rea
   return (
     <div className="min-h-screen bg-[#faf8f5] pb-20 max-w-lg mx-auto">
       {children}
-      <GuestNav />
+      <div className="print:hidden"><GuestNav /></div>
     </div>
   )
 }

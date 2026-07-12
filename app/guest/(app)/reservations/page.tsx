@@ -36,6 +36,33 @@ const STATUS_LABELS: Record<string, string> = {
 function todayStr() { return new Date().toISOString().split('T')[0] }
 function currency(n: number) { return '₱' + n.toLocaleString('en-PH', { minimumFractionDigits: 0 }) }
 
+const ARRIVAL_TIME_OPTIONS = [
+  { value: 'before_12pm', label: 'Before 12 PM' },
+  { value: '12pm_3pm',    label: '12 PM – 3 PM' },
+  { value: '3pm_6pm',     label: '3 PM – 6 PM' },
+  { value: 'after_6pm',   label: 'After 6 PM' },
+]
+
+const PAYMENT_METHOD_OPTIONS: { value: string; label: string }[] = [
+  { value: 'cash',  label: 'Pay at Hotel' },
+  { value: 'gcash', label: 'GCash' },
+  { value: 'card',  label: 'Credit Card' },
+]
+
+type LastBooking = {
+  code: string
+  roomNumber: string
+  typeName: string
+  checkIn: string
+  checkOut: string
+  nights: number
+  total: number | null
+  adults: number
+  children: number
+  paymentMethod: string
+  arrivalTime: string
+}
+
 function GuestStepper({ label, value, min, max, onChange }: {
   label: string; value: number; min: number; max: number; onChange: (n: number) => void
 }) {
@@ -83,9 +110,12 @@ function ReservationsContent() {
   const [adults, setAdults] = useState(1)
   const [childCount, setChildCount] = useState(0)
   const [notes, setNotes] = useState('')
+  const [arrivalTime, setArrivalTime] = useState('')
+  const [paymentMethod, setPaymentMethod] = useState('cash')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
+  const [availableCount, setAvailableCount] = useState<number | null>(null)
+  const [lastBooking, setLastBooking] = useState<LastBooking | null>(null)
 
   const load = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -111,6 +141,29 @@ function ReservationsContent() {
   }, [supabase])
 
   useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    if (!selectedTypeId || !checkIn || !checkOut || checkOut <= checkIn) { setAvailableCount(null); return }
+    let cancelled = false
+    async function check() {
+      const { data: rooms } = await supabase
+        .from('rooms')
+        .select('id')
+        .eq('room_type_id', selectedTypeId)
+        .eq('status', 'available')
+      const { data: conflicts } = await supabase
+        .from('reservations')
+        .select('room_id')
+        .in('status', ['pending', 'confirmed', 'checked_in'])
+        .lt('check_in_date', checkOut)
+        .gt('check_out_date', checkIn)
+      if (cancelled) return
+      const conflictIds = new Set((conflicts ?? []).map(c => c.room_id))
+      setAvailableCount((rooms ?? []).filter(r => !conflictIds.has(r.id)).length)
+    }
+    check()
+    return () => { cancelled = true }
+  }, [supabase, selectedTypeId, checkIn, checkOut])
 
   const nights = checkIn && checkOut && checkOut > checkIn
     ? Math.ceil((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86400000)
@@ -158,7 +211,7 @@ function ReservationsContent() {
       return
     }
 
-    const { error: err } = await supabase.from('reservations').insert({
+    const { data: inserted, error: err } = await supabase.from('reservations').insert({
       guest_id: guestId,
       room_id: room.id,
       check_in_date: checkIn,
@@ -168,16 +221,29 @@ function ReservationsContent() {
       notes: notes || null,
       adults,
       children: childCount,
-    })
+      arrival_time: arrivalTime || null,
+      payment_method: paymentMethod,
+    }).select('confirmation_code').single()
 
     if (err) { setError(err.message); setSaving(false); return }
 
-    setSuccess(`Booking confirmed for Room ${room.room_number}! Our team will reach out to verify details.`)
+    setLastBooking({
+      code: inserted?.confirmation_code ?? '—',
+      roomNumber: room.room_number,
+      typeName: selectedType?.name ?? '',
+      checkIn, checkOut, nights,
+      total: estimatedTotal,
+      adults, children: childCount,
+      paymentMethod,
+      arrivalTime,
+    })
     setShowForm(false)
     setSaving(false)
     setNotes('')
     setAdults(1)
     setChildCount(0)
+    setArrivalTime('')
+    setPaymentMethod('cash')
     load()
   }
 
@@ -194,7 +260,7 @@ function ReservationsContent() {
 
   return (
     <div>
-      <div className="bg-[#2d1c14] px-6 pt-14 pb-6 flex items-end justify-between">
+      <div className="print:hidden bg-[#2d1c14] px-6 pt-14 pb-6 flex items-end justify-between">
         <div>
           <h1 className="font-serif text-2xl font-bold text-[#f0e0d0]">My Stays</h1>
           <p className="text-[#7a5040] text-xs mt-0.5">
@@ -210,8 +276,36 @@ function ReservationsContent() {
       </div>
 
       <div className="p-5 space-y-4">
-        {error   && <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">{error}</div>}
-        {success && <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl px-4 py-3 text-sm">{success}</div>}
+        {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm print:hidden">{error}</div>}
+
+        {lastBooking && (
+          <div className="bg-white border border-green-300 rounded-2xl p-5 print:border-0" id="receipt">
+            <div className="print:hidden flex items-center justify-between mb-3">
+              <span className="text-green-700 text-sm font-semibold">✓ Booking Confirmed</span>
+              <button onClick={() => setLastBooking(null)} className="text-[#9d8a80] text-xs hover:underline">Dismiss</button>
+            </div>
+            <p className="text-[10px] uppercase tracking-widest text-[#9d8a80]">Booking Number</p>
+            <p className="text-xl font-bold text-[#3d2018] mb-3">{lastBooking.code}</p>
+            <div className="grid grid-cols-2 gap-3 text-xs mb-3">
+              <div><p className="text-[#8a6a5a]">Room</p><p className="font-semibold text-[#3d2018]">{lastBooking.typeName} — Room {lastBooking.roomNumber}</p></div>
+              <div><p className="text-[#8a6a5a]">Guests</p><p className="font-semibold text-[#3d2018]">{lastBooking.adults} Adult{lastBooking.adults !== 1 ? 's' : ''}{lastBooking.children > 0 ? `, ${lastBooking.children} Child${lastBooking.children !== 1 ? 'ren' : ''}` : ''}</p></div>
+              <div><p className="text-[#8a6a5a]">Check-in</p><p className="font-semibold text-[#3d2018]">{lastBooking.checkIn}</p></div>
+              <div><p className="text-[#8a6a5a]">Check-out</p><p className="font-semibold text-[#3d2018]">{lastBooking.checkOut}</p></div>
+              <div><p className="text-[#8a6a5a]">Nights</p><p className="font-semibold text-[#3d2018]">{lastBooking.nights}</p></div>
+              <div><p className="text-[#8a6a5a]">Payment Method</p><p className="font-semibold text-[#3d2018]">{PAYMENT_METHOD_OPTIONS.find(o => o.value === lastBooking.paymentMethod)?.label ?? lastBooking.paymentMethod}</p></div>
+            </div>
+            {lastBooking.total != null && (
+              <div className="border-t border-[#e8d5c8] pt-3 flex justify-between items-center mb-3">
+                <span className="text-xs text-[#8a6a5a]">Total</span>
+                <span className="font-bold text-[#b85c38] text-lg">{currency(lastBooking.total)}</span>
+              </div>
+            )}
+            <p className="text-[11px] text-[#8a6a5a] mb-3">Our team will reach out to verify details. Status: Pending confirmation.</p>
+            <button onClick={() => window.print()} className="print:hidden w-full border border-[#b85c38] text-[#b85c38] py-2.5 rounded-xl text-sm font-medium hover:bg-[#fdf6f0] transition-colors">
+              Print / Download Receipt
+            </button>
+          </div>
+        )}
 
         {/* Booking form */}
         {showForm && (
@@ -244,6 +338,14 @@ function ReservationsContent() {
               </div>
             </div>
 
+            {availableCount !== null && (
+              <p className={`text-xs font-medium ${availableCount > 0 ? 'text-[#b85c38]' : 'text-red-600'}`}>
+                {availableCount > 0
+                  ? `Only ${availableCount} room${availableCount !== 1 ? 's' : ''} of this type left for your dates`
+                  : 'No rooms of this type are available for those dates'}
+              </p>
+            )}
+
             <div>
               <label className="block text-xs font-medium text-[#7a5040] mb-1.5">Guests</label>
               <div className="border border-[#e8d5c8] rounded-xl px-4 divide-y divide-[#f0e8e0]">
@@ -271,6 +373,35 @@ function ReservationsContent() {
                 className="w-full border border-[#e8d5c8] rounded-xl px-4 py-3 text-sm text-[#3d2018] placeholder-[#c8a898] bg-white focus:outline-none focus:ring-2 focus:ring-[#b85c38]" />
             </div>
 
+            <div>
+              <label className="block text-xs font-medium text-[#7a5040] mb-1.5">Estimated Arrival Time</label>
+              <select value={arrivalTime} onChange={e => setArrivalTime(e.target.value)}
+                className="w-full border border-[#e8d5c8] rounded-xl px-4 py-3 text-sm text-[#3d2018] bg-white focus:outline-none focus:ring-2 focus:ring-[#b85c38] appearance-none">
+                <option value="">— Not sure yet —</option>
+                {ARRIVAL_TIME_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-[#7a5040] mb-1.5">Payment Method</label>
+              <div className="space-y-2">
+                {PAYMENT_METHOD_OPTIONS.map(o => (
+                  <label key={o.value} className="flex items-center gap-2.5 border border-[#e8d5c8] rounded-xl px-4 py-3 text-sm text-[#3d2018] cursor-pointer">
+                    <input type="radio" name="paymentMethod" value={o.value}
+                      checked={paymentMethod === o.value}
+                      onChange={() => setPaymentMethod(o.value)}
+                      className="accent-[#b85c38]" />
+                    {o.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-[#faf8f5] border border-[#e8d5c8] rounded-xl p-4 text-[11px] text-[#7a5040] leading-relaxed space-y-2">
+              <p><span className="font-semibold text-[#3d2018]">Cancellation Policy:</span> Reservations cancelled 48 hours or more before check-in receive a full refund. Cancellations within 48 hours forfeit one night's deposit.</p>
+              <p><span className="font-semibold text-[#3d2018]">House Rules:</span> Check-in 2:00 PM · Check-out 12:00 PM (noon) · Valid government ID required at check-in · No smoking in rooms · Pets are not allowed · Please observe quiet hours from 10:00 PM to 7:00 AM.</p>
+            </div>
+
             <button type="submit" disabled={saving}
               className="w-full bg-[#b85c38] text-white py-3.5 rounded-xl font-medium hover:bg-[#9a4a2a] disabled:opacity-50 transition-colors">
               {saving ? 'Booking…' : 'Confirm Booking'}
@@ -280,7 +411,7 @@ function ReservationsContent() {
 
         {/* Empty state */}
         {reservations.length === 0 && !showForm && (
-          <div className="text-center py-16 text-[#8a6a5a]">
+          <div className="print:hidden text-center py-16 text-[#8a6a5a]">
             <p className="text-5xl mb-4">🗓</p>
             <p className="font-medium text-[#3d2018]">No reservations yet</p>
             <p className="text-xs mt-1 mb-6">Browse our rooms and book your stay</p>
@@ -293,7 +424,7 @@ function ReservationsContent() {
 
         {/* Reservations list */}
         {reservations.map(r => (
-          <div key={r.id} className="bg-white border border-[#e8d5c8] rounded-2xl overflow-hidden">
+          <div key={r.id} className="print:hidden bg-white border border-[#e8d5c8] rounded-2xl overflow-hidden">
             <div className={`px-4 py-2 text-xs font-medium ${STATUS_COLORS[r.status] ?? 'bg-gray-100 text-gray-600'}`}>
               {STATUS_LABELS[r.status] ?? r.status}
             </div>
