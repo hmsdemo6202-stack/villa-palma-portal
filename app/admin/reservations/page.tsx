@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import CheckoutModal from '@/components/CheckoutModal'
 
 type Guest  = { id: string; full_name: string }
 type Room   = { id: string; room_number: string; room_types: { name: string; base_price: number } | null }
@@ -61,6 +62,7 @@ export default function AdminReservationsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [error, setError]   = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [checkoutTarget, setCheckoutTarget] = useState<Reservation | null>(null)
 
   const load = useCallback(async () => {
     const [{ data: res }, { data: gs }, { data: rs }] = await Promise.all([
@@ -283,6 +285,9 @@ export default function AdminReservationsPage() {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex gap-2">
+                    {r.status === 'checked_in' && (
+                      <button onClick={() => setCheckoutTarget(r)} className="text-xs border border-terra text-terra px-2.5 py-1 rounded-lg hover:bg-terra-light/20">Checkout</button>
+                    )}
                     <button onClick={() => openEdit(r)} className="text-xs border text-blue-600 px-2.5 py-1 rounded-lg hover:bg-blue-50">Edit</button>
                     <button onClick={() => handleDelete(r.id)} className="text-xs border border-red-200 text-red-500 px-2.5 py-1 rounded-lg hover:bg-red-50">Delete</button>
                   </div>
@@ -292,6 +297,14 @@ export default function AdminReservationsPage() {
           </tbody>
         </table>
       </div>
+
+      {checkoutTarget && (
+        <CheckoutModal
+          reservation={checkoutTarget}
+          onClose={() => setCheckoutTarget(null)}
+          onComplete={load}
+        />
+      )}
     </div>
   )
 }

@@ -10,6 +10,7 @@ type KPIs = {
   availableRooms: number
   occupiedRooms: number
   maintenanceRooms: number
+  dirtyRooms: number
   totalGuests: number
   revenueToday: number
   revenueThisMonth: number
@@ -110,6 +111,7 @@ export default function AdminDashboardPage() {
     const availableRooms  = roomList.filter(r => r.status === 'available').length
     const occupiedRooms   = roomList.filter(r => r.status === 'occupied').length
     const maintenanceRooms= roomList.filter(r => r.status === 'maintenance').length
+    const dirtyRooms       = roomList.filter(r => r.status === 'dirty' || r.status === 'cleaning' || r.status === 'inspection').length
 
     const revenueToday      = (todayPmts ?? []).reduce((s, p) => s + Number(p.amount), 0)
     const revenueThisMonth  = (monthPmts ?? []).reduce((s, p) => s + Number(p.amount), 0)
@@ -136,7 +138,7 @@ export default function AdminDashboardPage() {
     const inventoryValue  = invList.reduce((s, i) => s + Number(i.quantity_on_hand) * Number(i.unit_cost), 0)
 
     setKpis({
-      totalRooms, availableRooms, occupiedRooms, maintenanceRooms,
+      totalRooms, availableRooms, occupiedRooms, maintenanceRooms, dirtyRooms,
       totalGuests: guests?.length ?? 0,
       revenueToday, revenueThisMonth, expensesThisMonth,
       lowStockCount, inventoryValue, deptExpenses, revenueByDay,
@@ -177,10 +179,13 @@ export default function AdminDashboardPage() {
       {/* ── Rooms ── */}
       <section>
         <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Rooms</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           <StatCard label="Total Rooms"   value={String(kpis.totalRooms)} />
           <StatCard label="Available"     value={String(kpis.availableRooms)} accent={kpis.availableRooms > 0} />
           <StatCard label="Occupied"      value={`${occupancyPct}%`} sub={`${kpis.occupiedRooms} rooms`} accent={occupancyPct >= 70} />
+          <a href="/admin/housekeeping" className="block">
+            <StatCard label="Dirty Rooms"   value={String(kpis.dirtyRooms)} warn={kpis.dirtyRooms > 0} sub="needs housekeeping" />
+          </a>
           <StatCard label="Maintenance"   value={String(kpis.maintenanceRooms)} warn={kpis.maintenanceRooms > 0} />
         </div>
       </section>

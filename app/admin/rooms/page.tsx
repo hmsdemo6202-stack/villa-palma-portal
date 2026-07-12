@@ -18,7 +18,7 @@ type Room = {
   room_number: string
   room_type_id: string
   floor: number | null
-  status: 'available' | 'occupied' | 'maintenance' | 'reserved'
+  status: 'available' | 'occupied' | 'maintenance' | 'reserved' | 'dirty' | 'cleaning' | 'inspection'
   description: string
   room_types: { name: string; base_price: number } | null
 }
@@ -28,6 +28,9 @@ const STATUS_COLORS: Record<string, string> = {
   occupied:    'bg-red-100 text-red-700',
   reserved:    'bg-yellow-100 text-yellow-700',
   maintenance: 'bg-gray-100 text-gray-500',
+  dirty:       'bg-orange-100 text-orange-700',
+  cleaning:    'bg-blue-100 text-blue-700',
+  inspection:  'bg-purple-100 text-purple-700',
 }
 
 const emptyType: Omit<RoomType, 'id'> = { name: '', description: '', base_price: 0, capacity: 1, amenities: '', image_url: '' }
@@ -281,6 +284,9 @@ export default function AdminRoomsPage() {
                 <option value="available">Available</option>
                 <option value="occupied">Occupied</option>
                 <option value="reserved">Reserved</option>
+                <option value="dirty">Dirty</option>
+                <option value="cleaning">Cleaning</option>
+                <option value="inspection">Inspection</option>
                 <option value="maintenance">Maintenance</option>
               </select>
             </div>

@@ -10,6 +10,7 @@ const NAV = [
   { href: '/admin/rooms',       label: 'Rooms',         icon: '⊞', group: 'Core' },
   { href: '/admin/guests',      label: 'Guests',        icon: '👤', group: 'Core' },
   { href: '/admin/reservations',label: 'Reservations',  icon: '📅', group: 'Core' },
+  { href: '/admin/housekeeping', label: 'Housekeeping', icon: '🧹', group: 'Core' },
   // Restaurant
   { href: '/admin/menu',        label: 'Menu',          icon: '🍽', group: 'Restaurant' },
   { href: '/admin/orders',      label: 'Orders',        icon: '🧾', group: 'Restaurant' },

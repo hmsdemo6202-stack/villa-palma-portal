@@ -51,7 +51,6 @@ const PAYMENT_METHOD_OPTIONS: { value: string; label: string }[] = [
 
 type LastBooking = {
   code: string
-  roomNumber: string
   typeName: string
   checkIn: string
   checkOut: string
@@ -229,7 +228,6 @@ function ReservationsContent() {
 
     setLastBooking({
       code: inserted?.confirmation_code ?? '—',
-      roomNumber: room.room_number,
       typeName: selectedType?.name ?? '',
       checkIn, checkOut, nights,
       total: estimatedTotal,
@@ -287,7 +285,7 @@ function ReservationsContent() {
             <p className="text-[10px] uppercase tracking-widest text-[#9d8a80]">Booking Number</p>
             <p className="text-xl font-bold text-[#3d2018] mb-3">{lastBooking.code}</p>
             <div className="grid grid-cols-2 gap-3 text-xs mb-3">
-              <div><p className="text-[#8a6a5a]">Room</p><p className="font-semibold text-[#3d2018]">{lastBooking.typeName} — Room {lastBooking.roomNumber}</p></div>
+              <div><p className="text-[#8a6a5a]">Room Type</p><p className="font-semibold text-[#3d2018]">{lastBooking.typeName}</p></div>
               <div><p className="text-[#8a6a5a]">Guests</p><p className="font-semibold text-[#3d2018]">{lastBooking.adults} Adult{lastBooking.adults !== 1 ? 's' : ''}{lastBooking.children > 0 ? `, ${lastBooking.children} Child${lastBooking.children !== 1 ? 'ren' : ''}` : ''}</p></div>
               <div><p className="text-[#8a6a5a]">Check-in</p><p className="font-semibold text-[#3d2018]">{lastBooking.checkIn}</p></div>
               <div><p className="text-[#8a6a5a]">Check-out</p><p className="font-semibold text-[#3d2018]">{lastBooking.checkOut}</p></div>
@@ -431,8 +429,12 @@ function ReservationsContent() {
             <div className="p-4">
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <p className="font-bold text-[#3d2018] text-base">Room {r.rooms?.room_number ?? '—'}</p>
-                  <p className="text-xs text-[#8a6a5a] mt-0.5">{r.rooms?.room_types?.name ?? ''}</p>
+                  <p className="font-bold text-[#3d2018] text-base">{r.rooms?.room_types?.name ?? 'Room'}</p>
+                  <p className="text-xs text-[#8a6a5a] mt-0.5">
+                    {['checked_in', 'checked_out'].includes(r.status) && r.rooms?.room_number
+                      ? `Room ${r.rooms.room_number}`
+                      : 'Room number assigned at check-in'}
+                  </p>
                 </div>
                 {r.total_amount != null && (
                   <p className="font-bold text-[#b85c38] text-lg">{currency(r.total_amount)}</p>

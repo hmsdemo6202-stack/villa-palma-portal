@@ -96,10 +96,10 @@ export default function PaymentsPage() {
         .select('id, created_at, guests(full_name)')
         .order('created_at', { ascending: false }),
     ])
-    setPayments((pmts as Payment[]) ?? [])
+    setPayments((pmts as unknown as Payment[]) ?? [])
     setGuests(gs ?? [])
-    setReservations((res as Reservation[]) ?? [])
-    setOrders((ords as Order[]) ?? [])
+    setReservations((res as unknown as Reservation[]) ?? [])
+    setOrders((ords as unknown as Order[]) ?? [])
     setLoading(false)
   }, [supabase])
 
