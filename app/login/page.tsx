@@ -5,9 +5,9 @@ import { createClient } from '@/lib/supabase/client'
 
 export default function LoginPage() {
   const router = useRouter()
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError]   = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   async function handleLogin(e: React.FormEvent) {
@@ -15,9 +15,12 @@ export default function LoginPage() {
     setLoading(true)
     setError(null)
     const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) {
-      setError(error.message)
+    const { error: err } = await supabase.auth.signInWithPassword({
+      email:    `${username.trim().toLowerCase()}@cabalum.internal`,
+      password,
+    })
+    if (err) {
+      setError('Invalid username or password.')
       setLoading(false)
     } else {
       router.push('/admin')
@@ -27,7 +30,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex">
-      {/* Left brand panel */}
+      {/* Brand panel */}
       <div className="hidden lg:flex lg:w-5/12 bg-[#2d1c14] flex-col items-center justify-center p-12 relative overflow-hidden">
         <div className="absolute inset-0 opacity-5"
           style={{ backgroundImage: 'repeating-linear-gradient(45deg,#fff 0,#fff 1px,transparent 0,transparent 50%)', backgroundSize: '20px 20px' }} />
@@ -41,7 +44,7 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Right form panel */}
+      {/* Form panel */}
       <div className="flex-1 flex items-center justify-center bg-cream px-8 py-12">
         <div className="w-full max-w-sm">
           <div className="lg:hidden text-center mb-10">
@@ -49,21 +52,21 @@ export default function LoginPage() {
             <div className="w-10 h-px bg-terra mx-auto mt-3" />
           </div>
 
-          <h2 className="text-2xl font-serif font-semibold text-brown mb-1">Admin Sign In</h2>
+          <h2 className="text-2xl font-serif font-semibold text-brown mb-1">Staff Sign In</h2>
           <p className="text-sm text-brown-light mb-8">Authorised personnel only</p>
 
           <form onSubmit={handleLogin} className="space-y-5">
             <div>
               <label className="block text-xs font-medium text-brown-mid uppercase tracking-wide mb-2">
-                Email Address
+                Username
               </label>
               <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
+                type="text"
+                value={username}
+                onChange={e => setUsername(e.target.value)}
                 required
-                autoComplete="email"
-                placeholder="staff@cabalumhotel.com"
+                autoComplete="username"
+                placeholder="e.g. juan.reyes"
                 className="w-full border border-warm-border rounded-lg px-4 py-2.5 text-sm bg-white text-brown placeholder-brown-light focus:outline-none focus:ring-2 focus:ring-terra focus:border-terra transition-colors"
               />
             </div>

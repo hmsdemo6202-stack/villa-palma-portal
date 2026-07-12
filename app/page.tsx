@@ -9,18 +9,18 @@ export default function Home() {
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) { router.replace('/guest/login'); return }
+      if (!user) { router.replace('/login'); return }
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
+      const { data: staff } = await supabase
+        .from('users')
+        .select('role, is_active')
         .eq('id', user.id)
         .single()
 
-      if (profile?.role === 'admin' || profile?.role === 'staff') {
+      if (staff?.is_active) {
         router.replace('/admin/dashboard')
       } else {
-        router.replace('/guest/rooms')
+        router.replace('/login')
       }
     })
   }, [router])

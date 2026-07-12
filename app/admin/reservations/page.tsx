@@ -14,11 +14,11 @@ type Reservation = {
   check_out_date: string
   nights: number
   total_amount: number | null
-  status: 'pending' | 'confirmed' | 'checked_in' | 'checked_out' | 'cancelled' | 'no_show'
+  status: 'inquiry' | 'pending' | 'confirmed' | 'checked_in' | 'checked_out' | 'cancelled' | 'no_show'
   notes: string | null
   created_at: string
-  guests:  { full_name: string } | null
-  rooms:   { room_number: string; room_types: { name: string } | null } | null
+  guests: { full_name: string } | null
+  rooms:  { room_number: string; room_types: { name: string } | null } | null
 }
 
 type ResForm = {
@@ -32,6 +32,7 @@ type ResForm = {
 }
 
 const STATUS_COLORS: Record<string, string> = {
+  inquiry:     'bg-violet-100 text-violet-700',
   pending:     'bg-yellow-100 text-yellow-700',
   confirmed:   'bg-blue-100 text-blue-700',
   checked_in:  'bg-green-100 text-green-700',
@@ -44,7 +45,7 @@ function todayStr() { return new Date().toISOString().split('T')[0] }
 function tomorrowStr() { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0] }
 
 function emptyForm(): ResForm {
-  return { guest_id: '', room_id: '', check_in_date: todayStr(), check_out_date: tomorrowStr(), total_amount: '', status: 'pending', notes: '' }
+  return { guest_id: '', room_id: '', check_in_date: todayStr(), check_out_date: tomorrowStr(), total_amount: '', status: 'inquiry', notes: '' }
 }
 
 export default function AdminReservationsPage() {
@@ -215,6 +216,7 @@ export default function AdminReservationsPage() {
               <label className="block text-xs font-medium text-gray-600 mb-1">Status</label>
               <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value as Reservation['status'] }))}
                 className="w-full border border-warm-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-terra">
+                <option value="inquiry">Inquiry</option>
                 <option value="pending">Pending</option>
                 <option value="confirmed">Confirmed</option>
                 <option value="checked_in">Checked In</option>
@@ -242,7 +244,7 @@ export default function AdminReservationsPage() {
       )}
 
       <div className="flex gap-1 flex-wrap">
-        {(['all','pending','confirmed','checked_in','checked_out','cancelled','no_show'] as const).map(s => (
+        {(['all','inquiry','pending','confirmed','checked_in','checked_out','cancelled','no_show'] as const).map(s => (
           <button key={s} onClick={() => setStatusFilter(s)}
             className={`text-xs px-3 py-1.5 rounded-full border capitalize transition-colors ${
               statusFilter === s ? 'bg-terra text-white border-terra' : 'text-brown-mid border-warm-border hover:border-terra'}`}>
@@ -275,6 +277,7 @@ export default function AdminReservationsPage() {
                 <td className="px-4 py-3">
                   <select value={r.status} onChange={e => changeStatus(r.id, e.target.value as Reservation['status'])}
                     className={`text-xs px-2 py-0.5 rounded-full font-medium border-0 cursor-pointer ${STATUS_COLORS[r.status]}`}>
+                    <option value="inquiry">Inquiry</option>
                     <option value="pending">Pending</option>
                     <option value="confirmed">Confirmed</option>
                     <option value="checked_in">Checked In</option>

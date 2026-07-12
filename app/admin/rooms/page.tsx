@@ -19,6 +19,8 @@ type Room = {
   room_type_id: string
   floor: number | null
   status: 'available' | 'occupied' | 'maintenance' | 'reserved' | 'dirty' | 'cleaning' | 'inspection'
+  bed_type: string | null
+  is_smoking: boolean
   description: string
   room_types: { name: string; base_price: number } | null
 }
@@ -34,7 +36,22 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 const emptyType: Omit<RoomType, 'id'> = { name: '', description: '', base_price: 0, capacity: 1, amenities: '', image_url: '' }
-const emptyRoom: Omit<Room, 'id' | 'room_types'> = { room_number: '', room_type_id: '', floor: null, status: 'available', description: '' }
+const BED_TYPES = ['Single', 'Twin', 'Double', 'Queen', 'King', 'Suite King', 'Bunk']
+
+const STATUS_LABELS: Record<string, string> = {
+  available:   'Available',
+  occupied:    'Occupied',
+  reserved:    'Reserved',
+  dirty:       'Dirty',
+  cleaning:    'Cleaning',
+  inspection:  'Inspection',
+  maintenance: 'Maintenance',
+}
+
+const emptyRoom: Omit<Room, 'id' | 'room_types'> = {
+  room_number: '', room_type_id: '', floor: null,
+  status: 'available', bed_type: null, is_smoking: false, description: '',
+}
 
 export default function AdminRoomsPage() {
   const supabase = createClient()
@@ -131,7 +148,10 @@ export default function AdminRoomsPage() {
   }
 
   function editRoom(r: Room) {
-    setRoomForm({ room_number: r.room_number, room_type_id: r.room_type_id, floor: r.floor, status: r.status, description: r.description })
+    setRoomForm({
+      room_number: r.room_number, room_type_id: r.room_type_id, floor: r.floor,
+      status: r.status, bed_type: r.bed_type, is_smoking: r.is_smoking, description: r.description,
+    })
     setRoomEditId(r.id); setShowRoomForm(true); setShowTypeForm(false)
   }
 
@@ -139,13 +159,18 @@ export default function AdminRoomsPage() {
   const occupied    = rooms.filter(r => r.status === 'occupied').length
   const reserved    = rooms.filter(r => r.status === 'reserved').length
   const maintenance = rooms.filter(r => r.status === 'maintenance').length
+  const dirty       = rooms.filter(r => r.status === 'dirty').length
+  const cleaning    = rooms.filter(r => r.status === 'cleaning').length
+  const inspection  = rooms.filter(r => r.status === 'inspection').length
 
   return (
     <div className="space-y-10 max-w-5xl">
       <div>
         <h1 className="text-2xl font-bold text-brown">Rooms</h1>
         <p className="text-sm text-gray-500 mt-0.5">
-          {rooms.length} total · {available} available · {occupied} occupied · {reserved} reserved · {maintenance} maintenance
+          {rooms.length} total &middot; {available} available &middot; {occupied} occupied &middot; {reserved} reserved
+          {dirty > 0 ? ` · ${dirty} dirty` : ''}{cleaning > 0 ? ` · ${cleaning} cleaning` : ''}
+          {inspection > 0 ? ` · ${inspection} inspection` : ''}{maintenance > 0 ? ` · ${maintenance} maintenance` : ''}
         </p>
       </div>
 
@@ -281,14 +306,24 @@ export default function AdminRoomsPage() {
               <label className="block text-xs font-medium mb-1">Status</label>
               <select value={roomForm.status} onChange={e => setRoomForm(f => ({ ...f, status: e.target.value as Room['status'] }))}
                 className="w-full border rounded-lg px-3 py-2 text-sm">
-                <option value="available">Available</option>
-                <option value="occupied">Occupied</option>
-                <option value="reserved">Reserved</option>
-                <option value="dirty">Dirty</option>
-                <option value="cleaning">Cleaning</option>
-                <option value="inspection">Inspection</option>
-                <option value="maintenance">Maintenance</option>
+                {Object.entries(STATUS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1">Bed Type</label>
+              <select value={roomForm.bed_type ?? ''} onChange={e => setRoomForm(f => ({ ...f, bed_type: e.target.value || null }))}
+                className="w-full border rounded-lg px-3 py-2 text-sm">
+                <option value="">— Select —</option>
+                {BED_TYPES.map(b => <option key={b} value={b}>{b}</option>)}
+              </select>
+            </div>
+            <div className="flex items-end pb-2">
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="checkbox" checked={roomForm.is_smoking}
+                  onChange={e => setRoomForm(f => ({ ...f, is_smoking: e.target.checked }))}
+                  className="w-4 h-4 rounded border-gray-300 text-terra" />
+                Smoking room
+              </label>
             </div>
             <div className="col-span-2 sm:col-span-4">
               <label className="block text-xs font-medium mb-1">Notes</label>
@@ -308,29 +343,30 @@ export default function AdminRoomsPage() {
         <div className="overflow-x-auto rounded-xl border border-warm-border">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-left">
-              <tr>{['Room', 'Type', 'Floor', 'Rate/Night', 'Status', 'Actions'].map(h =>
+              <tr>{['Room', 'Type', 'Bed', 'Floor', 'Rate/Night', 'Status', 'Actions'].map(h =>
                 <th key={h} className="px-4 py-2.5 font-medium text-gray-500 whitespace-nowrap">{h}</th>)}
               </tr>
             </thead>
             <tbody className="divide-y bg-white">
-              {rooms.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">No rooms yet.</td></tr>}
+              {rooms.length === 0 && <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">No rooms yet.</td></tr>}
               {rooms.map(r => (
                 <tr key={r.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-semibold text-brown">{r.room_number}</td>
-                  <td className="px-4 py-3">{r.room_types?.name ?? <span className="text-gray-300">—</span>}</td>
+                  <td className="px-4 py-3">
+                    <span className="font-semibold text-brown">{r.room_number}</span>
+                    {r.is_smoking && <span className="ml-1.5 text-xs text-orange-400" title="Smoking room">🚬</span>}
+                  </td>
+                  <td className="px-4 py-3 text-gray-700">{r.room_types?.name ?? <span className="text-gray-300">—</span>}</td>
+                  <td className="px-4 py-3 text-gray-500 text-xs">{r.bed_type ?? '—'}</td>
                   <td className="px-4 py-3 text-gray-500">{r.floor ?? '—'}</td>
                   <td className="px-4 py-3">{r.room_types ? '₱' + Number(r.room_types.base_price).toLocaleString('en-PH') : '—'}</td>
                   <td className="px-4 py-3">
                     <select value={r.status} onChange={e => updateStatus(r.id, e.target.value as Room['status'])}
-                      className={`text-xs px-2 py-0.5 rounded-full font-medium border-0 cursor-pointer ${STATUS_COLORS[r.status]}`}>
-                      <option value="available">Available</option>
-                      <option value="occupied">Occupied</option>
-                      <option value="reserved">Reserved</option>
-                      <option value="maintenance">Maintenance</option>
+                      className={`text-xs px-2 py-1 rounded-full font-medium border-0 cursor-pointer ${STATUS_COLORS[r.status]}`}>
+                      {Object.entries(STATUS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                     </select>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 items-center">
                       <button onClick={() => editRoom(r)} className="text-xs border text-blue-600 px-2.5 py-1 rounded-lg hover:bg-blue-50">Edit</button>
                       <button onClick={() => deleteRoom(r.id, r.room_number)} className="text-xs text-red-500 hover:underline">Delete</button>
                     </div>

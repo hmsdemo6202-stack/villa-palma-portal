@@ -19,15 +19,26 @@ type KPIs = {
   inventoryValue: number
   deptExpenses: { name: string; total: number }[]
   revenueByDay: { date: string; revenue: number }[]
-  // Enterprise metrics
   checkInsToday: number
   checkOutsToday: number
   pendingReservations: number
+  inHouseGuests: number
   newContacts: number
   pendingReviews: number
   activePromotions: number
   openTickets: number
 }
+
+const QUICK_ACTIONS = [
+  { label: 'New Reservation',  icon: '📋', href: '/admin/reservations' },
+  { label: 'Walk-in Check-In', icon: '🚶', href: '/admin/checkin'      },
+  { label: 'Check In',         icon: '🔑', href: '/admin/checkin'      },
+  { label: 'Check Out',        icon: '🏁', href: '/admin/checkout'     },
+  { label: 'Room List',        icon: '🛏', href: '/admin/rooms'        },
+  { label: 'Housekeeping',     icon: '🧹', href: '/admin/housekeeping' },
+  { label: 'Maintenance',      icon: '🔧', href: '/admin/maintenance'  },
+  { label: 'Reports',          icon: '📊', href: '/admin/reports'      },
+]
 
 function currency(n: number) {
   return '₱' + n.toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
@@ -86,6 +97,7 @@ export default function AdminDashboardPage() {
       { count: checkInsToday },
       { count: checkOutsToday },
       { count: pendingReservations },
+      { count: inHouseGuests },
       { count: activePromotions },
       { count: openTickets },
     ] = await Promise.all([
@@ -102,6 +114,7 @@ export default function AdminDashboardPage() {
       supabase.from('reservations').select('*', { count: 'exact', head: true }).eq('check_in_date', today),
       supabase.from('reservations').select('*', { count: 'exact', head: true }).eq('check_out_date', today),
       supabase.from('reservations').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+      supabase.from('reservations').select('*', { count: 'exact', head: true }).eq('status', 'checked_in'),
       supabase.from('promotions').select('*', { count: 'exact', head: true }).eq('is_active', true),
       supabase.from('support_tickets').select('*', { count: 'exact', head: true }).eq('status', 'open'),
     ])
@@ -145,6 +158,7 @@ export default function AdminDashboardPage() {
       checkInsToday: checkInsToday ?? 0,
       checkOutsToday: checkOutsToday ?? 0,
       pendingReservations: pendingReservations ?? 0,
+      inHouseGuests: inHouseGuests ?? 0,
       newContacts: newContacts ?? 0,
       pendingReviews: pendingReviews ?? 0,
       activePromotions: activePromotions ?? 0,
@@ -175,6 +189,20 @@ export default function AdminDashboardPage() {
           ↻ Refresh
         </button>
       </div>
+
+      {/* ── Quick Actions ── */}
+      <section>
+        <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Quick Actions</h2>
+        <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+          {QUICK_ACTIONS.map(a => (
+            <a key={a.label} href={a.href}
+              className="flex flex-col items-center gap-1.5 p-3 bg-white border border-warm-border rounded-xl hover:border-terra hover:bg-terra-light/30 transition-colors group">
+              <span className="text-2xl">{a.icon}</span>
+              <span className="text-xs text-center text-gray-600 group-hover:text-terra font-medium leading-tight">{a.label}</span>
+            </a>
+          ))}
+        </div>
+      </section>
 
       {/* ── Rooms ── */}
       <section>
@@ -210,10 +238,11 @@ export default function AdminDashboardPage() {
       {/* ── Operations ── */}
       <section>
         <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Operations</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <StatCard label="Registered Guests"  value={String(kpis.totalGuests)} />
-          <StatCard label="Low Stock Items"     value={String(kpis.lowStockCount)} warn={kpis.lowStockCount > 0} sub="at or below threshold" />
-          <StatCard label="Inventory Value"     value={currency(kpis.inventoryValue)} />
+          <StatCard label="In-house Guests"    value={String(kpis.inHouseGuests)} accent={kpis.inHouseGuests > 0} sub="currently checked in" />
+          <StatCard label="Low Stock Items"    value={String(kpis.lowStockCount)} warn={kpis.lowStockCount > 0} sub="at or below threshold" />
+          <StatCard label="Inventory Value"    value={currency(kpis.inventoryValue)} />
         </div>
       </section>
 

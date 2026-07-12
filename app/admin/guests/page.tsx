@@ -12,6 +12,10 @@ type Guest = {
   id_number: string | null
   nationality: string | null
   notes: string | null
+  birthday: string | null
+  loyalty_points: number
+  preferences: string | null
+  favorite_room_type_id: string | null
   created_at: string
 }
 
@@ -24,11 +28,18 @@ type GuestForm = {
   id_number: string
   nationality: string
   notes: string
+  birthday: string
+  loyalty_points: number
+  preferences: string
+  favorite_room_type_id: string
 }
+
+type RoomType = { id: string; name: string }
 
 const emptyForm: GuestForm = {
   full_name: '', email: '', phone: '', address: '',
-  id_type: '', id_number: '', nationality: '', notes: ''
+  id_type: '', id_number: '', nationality: '', notes: '',
+  birthday: '', loyalty_points: 0, preferences: '', favorite_room_type_id: '',
 }
 
 const ID_TYPES = ['Passport', "Driver's License", 'PhilSys / National ID', 'SSS ID', 'UMID', 'Voter\'s ID', 'Other']
@@ -36,6 +47,7 @@ const ID_TYPES = ['Passport', "Driver's License", 'PhilSys / National ID', 'SSS 
 export default function AdminGuestsPage() {
   const supabase = createClient()
   const [guests, setGuests] = useState<Guest[]>([])
+  const [roomTypes, setRoomTypes] = useState<RoomType[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
 
@@ -50,11 +62,12 @@ export default function AdminGuestsPage() {
   const [viewGuest, setViewGuest] = useState<Guest | null>(null)
 
   const load = useCallback(async () => {
-    const { data } = await supabase
-      .from('guests')
-      .select('*')
-      .order('created_at', { ascending: false })
-    setGuests((data as Guest[]) ?? [])
+    const [{ data: guestData }, { data: rtData }] = await Promise.all([
+      supabase.from('guests').select('*').order('created_at', { ascending: false }),
+      supabase.from('room_types').select('id, name').order('name'),
+    ])
+    setGuests((guestData as Guest[]) ?? [])
+    setRoomTypes((rtData as RoomType[]) ?? [])
     setLoading(false)
   }, [supabase])
 
@@ -74,7 +87,9 @@ export default function AdminGuestsPage() {
     setForm({
       full_name: g.full_name, email: g.email ?? '', phone: g.phone ?? '',
       address: g.address ?? '', id_type: g.id_type ?? '', id_number: g.id_number ?? '',
-      nationality: g.nationality ?? '', notes: g.notes ?? ''
+      nationality: g.nationality ?? '', notes: g.notes ?? '',
+      birthday: g.birthday ?? '', loyalty_points: g.loyalty_points ?? 0,
+      preferences: g.preferences ?? '', favorite_room_type_id: g.favorite_room_type_id ?? '',
     })
     setEditId(g.id); setShowForm(true); setViewGuest(null)
   }
@@ -83,14 +98,18 @@ export default function AdminGuestsPage() {
     e.preventDefault()
     setSaving(true)
     const payload = {
-      full_name:   form.full_name,
-      email:       form.email       || null,
-      phone:       form.phone       || null,
-      address:     form.address     || null,
-      id_type:     form.id_type     || null,
-      id_number:   form.id_number   || null,
-      nationality: form.nationality || null,
-      notes:       form.notes       || null,
+      full_name:              form.full_name,
+      email:                  form.email                  || null,
+      phone:                  form.phone                  || null,
+      address:                form.address                || null,
+      id_type:                form.id_type                || null,
+      id_number:              form.id_number              || null,
+      nationality:            form.nationality            || null,
+      notes:                  form.notes                  || null,
+      birthday:               form.birthday               || null,
+      loyalty_points:         Number(form.loyalty_points) || 0,
+      preferences:            form.preferences            || null,
+      favorite_room_type_id:  form.favorite_room_type_id  || null,
     }
     const { error: err } = editId
       ? await supabase.from('guests').update(payload).eq('id', editId)
@@ -183,12 +202,38 @@ export default function AdminGuestsPage() {
                 className="w-full border border-warm-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-terra"
                 placeholder="Street, City, Province" />
             </div>
-            <div className="sm:col-span-2">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Birthday</label>
+              <input type="date" value={form.birthday} onChange={e => setForm(f => ({ ...f, birthday: e.target.value }))}
+                className="w-full border border-warm-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-terra" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Loyalty Points</label>
+              <input type="number" min={0} value={form.loyalty_points}
+                onChange={e => setForm(f => ({ ...f, loyalty_points: +e.target.value }))}
+                className="w-full border border-warm-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-terra" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Favorite Room Type</label>
+              <select value={form.favorite_room_type_id} onChange={e => setForm(f => ({ ...f, favorite_room_type_id: e.target.value }))}
+                className="w-full border border-warm-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-terra">
+                <option value="">— None —</option>
+                {roomTypes.map(rt => <option key={rt.id} value={rt.id}>{rt.name}</option>)}
+              </select>
+            </div>
+            <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Notes</label>
               <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
                 rows={2}
                 className="w-full border border-warm-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-terra"
-                placeholder="Special requests, preferences, VIP status…" />
+                placeholder="VIP status, special requests…" />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-medium text-gray-600 mb-1">Preferences</label>
+              <textarea value={form.preferences} onChange={e => setForm(f => ({ ...f, preferences: e.target.value }))}
+                rows={2}
+                className="w-full border border-warm-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-terra"
+                placeholder="Dietary restrictions, pillow type, floor preference, quiet room…" />
             </div>
           </div>
           <div className="flex gap-2">
@@ -212,18 +257,33 @@ export default function AdminGuestsPage() {
             </div>
             <button onClick={() => setViewGuest(null)} className="text-gray-400 hover:text-gray-600">✕</button>
           </div>
+          {viewGuest.loyalty_points > 0 && (
+            <div className="mb-3 inline-flex items-center gap-1.5 px-3 py-1 bg-yellow-50 border border-yellow-200 rounded-full text-xs text-yellow-800 font-medium">
+              ★ {viewGuest.loyalty_points.toLocaleString()} loyalty points
+            </div>
+          )}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
-            {[
-              ['Email', viewGuest.email], ['Phone', viewGuest.phone],
-              ['Nationality', viewGuest.nationality], ['ID Type', viewGuest.id_type],
-              ['ID Number', viewGuest.id_number], ['Address', viewGuest.address],
-            ].map(([label, val]) => (
+            {([
+              ['Email', viewGuest.email],
+              ['Phone', viewGuest.phone],
+              ['Nationality', viewGuest.nationality],
+              ['Birthday', viewGuest.birthday ? new Date(viewGuest.birthday + 'T00:00:00').toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }) : null],
+              ['ID Type', viewGuest.id_type],
+              ['ID Number', viewGuest.id_number],
+              ['Address', viewGuest.address],
+              ['Fav. Room', viewGuest.favorite_room_type_id ? (roomTypes.find(r => r.id === viewGuest.favorite_room_type_id)?.name ?? '—') : null],
+            ] as [string, string | null][]).map(([label, val]) => (
               <div key={label}>
                 <p className="text-xs text-gray-400 mb-0.5">{label}</p>
                 <p className="text-brown font-medium">{val || <span className="text-gray-300 font-normal">—</span>}</p>
               </div>
             ))}
           </div>
+          {viewGuest.preferences && (
+            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+              <span className="font-semibold">Preferences: </span>{viewGuest.preferences}
+            </div>
+          )}
           {viewGuest.notes && (
             <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
               <span className="font-semibold">Notes: </span>{viewGuest.notes}
@@ -282,13 +342,13 @@ export default function AdminGuestsPage() {
       <div className="hidden sm:block overflow-x-auto rounded-xl border border-warm-border">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-left">
-            <tr>{['Name', 'Nationality', 'Email', 'Phone', 'ID', 'Registered', 'Actions'].map(h =>
+            <tr>{['Name', 'Nationality', 'Email', 'Phone', 'ID', 'Loyalty', 'Registered', 'Actions'].map(h =>
               <th key={h} className="px-4 py-3 font-medium text-gray-500 whitespace-nowrap">{h}</th>)}
             </tr>
           </thead>
           <tbody className="divide-y bg-white">
             {visible.length === 0 && (
-              <tr><td colSpan={7} className="px-4 py-10 text-center text-gray-400">
+              <tr><td colSpan={8} className="px-4 py-10 text-center text-gray-400">
                 {search ? 'No guests match that search.' : 'No guests registered yet.'}
               </td></tr>
             )}
@@ -305,6 +365,11 @@ export default function AdminGuestsPage() {
                 <td className="px-4 py-3 text-gray-500">{g.phone ?? '—'}</td>
                 <td className="px-4 py-3 text-gray-500 text-xs">
                   {g.id_type ? `${g.id_type}${g.id_number ? ' · ' + g.id_number : ''}` : '—'}
+                </td>
+                <td className="px-4 py-3 text-xs">
+                  {g.loyalty_points > 0
+                    ? <span className="inline-flex items-center gap-0.5 text-yellow-700 font-medium">★ {g.loyalty_points.toLocaleString()}</span>
+                    : <span className="text-gray-300">—</span>}
                 </td>
                 <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">
                   {new Date(g.created_at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}

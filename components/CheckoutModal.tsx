@@ -22,6 +22,7 @@ export default function CheckoutModal({
   reservation: {
     id: string
     guest_id: string
+    room_id: string
     total_amount: number | null
     guests: { full_name: string } | null
     rooms: { room_number: string; room_types: { name: string } | null } | null
@@ -95,9 +96,11 @@ export default function CheckoutModal({
 
     const { error: resErr } = await supabase
       .from('reservations')
-      .update({ status: 'checked_out' })
+      .update({ status: 'checked_out', actual_check_out: new Date().toISOString() })
       .eq('id', reservation.id)
     if (resErr) { setError(resErr.message); setSaving(false); return }
+
+    await supabase.from('rooms').update({ status: 'dirty' }).eq('id', reservation.room_id)
 
     setSaving(false)
     setDone(true)
