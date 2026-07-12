@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 
 export default function GuestAccountPage() {
@@ -156,6 +157,21 @@ export default function GuestAccountPage() {
             </div>
           </div>
         </div>
+
+        {/* Support */}
+        <Link
+          href="/guest/support"
+          className="flex items-center justify-between bg-white border border-[#e8d5c8] rounded-2xl p-5 hover:border-[#b85c38] transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-xl">🎫</span>
+            <div>
+              <p className="font-semibold text-[#3d2018] text-sm">Contact Support</p>
+              <p className="text-xs text-[#8a6a5a]">Send a message to our front desk team</p>
+            </div>
+          </div>
+          <span className="text-[#b85c38]">→</span>
+        </Link>
 
         {/* Sign out */}
         <button

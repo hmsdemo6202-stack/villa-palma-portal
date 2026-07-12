@@ -24,6 +24,7 @@ const NAV = [
   { href: '/admin/reviews',     label: 'Reviews',       icon: '⭐', group: 'Content' },
   { href: '/admin/faqs',        label: 'FAQs',          icon: '❓', group: 'Content' },
   { href: '/admin/contacts',    label: 'Contacts',      icon: '📬', group: 'Content' },
+  { href: '/admin/support-tickets', label: 'Support Tickets', icon: '🎫', group: 'Content' },
   // Admin
   { href: '/admin/departments', label: 'Departments',   icon: '🏢', group: 'Admin' },
   { href: '/admin/users',       label: 'Users',         icon: '👥', group: 'Admin' },

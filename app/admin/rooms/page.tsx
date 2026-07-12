@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import RoomPhotoManager from '@/components/RoomPhotoManager'
 
 type RoomType = {
   id: string
@@ -44,6 +45,8 @@ export default function AdminRoomsPage() {
   const [roomForm, setRoomForm] = useState<Omit<Room, 'id' | 'room_types'>>(emptyRoom)
   const [roomEditId, setRoomEditId] = useState<string | null>(null)
   const [showRoomForm, setShowRoomForm] = useState(false)
+
+  const [photosFor, setPhotosFor] = useState<{ id: string; name: string } | null>(null)
 
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
@@ -229,6 +232,7 @@ export default function AdminRoomsPage() {
                   <td className="px-4 py-3 text-gray-500 text-xs max-w-[200px] truncate">{t.amenities || '—'}</td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2">
+                      <button onClick={() => setPhotosFor({ id: t.id, name: t.name })} className="text-xs border text-terra px-2.5 py-1 rounded-lg hover:bg-terra-light/20">Photos</button>
                       <button onClick={() => editType(t)} className="text-xs border text-blue-600 px-2.5 py-1 rounded-lg hover:bg-blue-50">Edit</button>
                       <button onClick={() => deleteType(t.id, t.name)} className="text-xs text-red-500 hover:underline">Delete</button>
                     </div>
@@ -331,6 +335,14 @@ export default function AdminRoomsPage() {
           </table>
         </div>
       </section>
+
+      {photosFor && (
+        <RoomPhotoManager
+          roomTypeId={photosFor.id}
+          roomTypeName={photosFor.name}
+          onClose={() => { setPhotosFor(null); loadTypes() }}
+        />
+      )}
     </div>
   )
 }

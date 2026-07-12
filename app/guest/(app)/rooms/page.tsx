@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import RoomGalleryModal, { GalleryPhoto } from '@/components/RoomGalleryModal'
 
 type RoomType = {
   id: string
@@ -11,6 +12,7 @@ type RoomType = {
   capacity: number
   amenities: string | null
   image_url: string | null
+  room_type_images: GalleryPhoto[]
 }
 
 function currency(n: number) {
@@ -21,12 +23,17 @@ export default function GuestRoomsPage() {
   const router = useRouter()
   const [roomTypes, setRoomTypes] = useState<RoomType[]>([])
   const [loading, setLoading] = useState(true)
+  const [gallery, setGallery] = useState<RoomType | null>(null)
 
   useEffect(() => {
-    createClient().from('room_types').select('*').order('base_price').then(({ data }) => {
-      setRoomTypes(data ?? [])
-      setLoading(false)
-    })
+    createClient()
+      .from('room_types')
+      .select('*, room_type_images(id, image_url, alt_text, sort_order)')
+      .order('base_price')
+      .then(({ data }) => {
+        setRoomTypes((data as RoomType[]) ?? [])
+        setLoading(false)
+      })
   }, [])
 
   return (
@@ -64,13 +71,23 @@ export default function GuestRoomsPage() {
         {roomTypes.map(rt => (
           <div key={rt.id} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-[#f0e0d0]">
             {/* Image */}
-            {rt.image_url ? (
-              <img src={rt.image_url} alt={rt.name} className="w-full h-48 object-cover" />
-            ) : (
-              <div className="w-full h-44 bg-gradient-to-br from-[#3d2418] via-[#7a4028] to-[#b85c38] flex items-center justify-center">
-                <span className="text-6xl opacity-25">🛏</span>
-              </div>
-            )}
+            <div className="relative">
+              {rt.image_url ? (
+                <img src={rt.image_url} alt={rt.name} className="w-full h-48 object-cover" />
+              ) : (
+                <div className="w-full h-44 bg-gradient-to-br from-[#3d2418] via-[#7a4028] to-[#b85c38] flex items-center justify-center">
+                  <span className="text-6xl opacity-25">🛏</span>
+                </div>
+              )}
+              {rt.room_type_images.length > 0 && (
+                <button
+                  onClick={() => setGallery(rt)}
+                  className="absolute bottom-3 right-3 text-xs bg-black/60 text-white px-3 py-1.5 rounded-full hover:bg-black/75 transition-colors"
+                >
+                  📷 View Photos ({rt.room_type_images.length})
+                </button>
+              )}
+            </div>
 
             {/* Content */}
             <div className="p-5">
@@ -113,6 +130,14 @@ export default function GuestRoomsPage() {
           </div>
         ))}
       </div>
+
+      {gallery && (
+        <RoomGalleryModal
+          photos={[...gallery.room_type_images].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))}
+          roomTypeName={gallery.name}
+          onClose={() => setGallery(null)}
+        />
+      )}
     </div>
   )
 }

@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
-type RoomType = { id: string; name: string; base_price: number }
+type RoomType = { id: string; name: string; base_price: number; capacity: number }
 type Reservation = {
   id: string
   check_in_date: string
@@ -36,6 +36,35 @@ const STATUS_LABELS: Record<string, string> = {
 function todayStr() { return new Date().toISOString().split('T')[0] }
 function currency(n: number) { return '₱' + n.toLocaleString('en-PH', { minimumFractionDigits: 0 }) }
 
+function GuestStepper({ label, value, min, max, onChange }: {
+  label: string; value: number; min: number; max: number; onChange: (n: number) => void
+}) {
+  return (
+    <div className="flex items-center justify-between py-2">
+      <span className="text-sm text-[#3d2018]">{label}</span>
+      <div className="flex items-center gap-3">
+        <button type="button" onClick={() => onChange(Math.max(min, value - 1))}
+          className="w-8 h-8 flex items-center justify-center rounded-full border border-[#e8d5c8] text-[#b85c38] font-bold hover:bg-[#fdf6f0] transition-colors">
+          −
+        </button>
+        <input
+          type="number"
+          inputMode="numeric"
+          value={value}
+          min={min}
+          max={max}
+          onChange={e => onChange(Math.min(max, Math.max(min, Math.round(Number(e.target.value) || min))))}
+          className="w-10 text-center text-sm font-semibold text-[#3d2018] bg-transparent focus:outline-none"
+        />
+        <button type="button" onClick={() => onChange(Math.min(max, value + 1))}
+          className="w-8 h-8 flex items-center justify-center rounded-full border border-[#e8d5c8] text-[#b85c38] font-bold hover:bg-[#fdf6f0] transition-colors">
+          +
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function ReservationsContent() {
   const supabase = createClient()
   const params = useSearchParams()
@@ -51,6 +80,8 @@ function ReservationsContent() {
   const [checkOut, setCheckOut] = useState(() => {
     const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0]
   })
+  const [adults, setAdults] = useState(1)
+  const [childCount, setChildCount] = useState(0)
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -62,7 +93,7 @@ function ReservationsContent() {
 
     const [{ data: guest }, { data: types }] = await Promise.all([
       supabase.from('guests').select('id').eq('profile_id', user.id).single(),
-      supabase.from('room_types').select('id, name, base_price').order('name'),
+      supabase.from('room_types').select('id, name, base_price, capacity').order('name'),
     ])
 
     setGuestId(guest?.id ?? null)
@@ -92,6 +123,10 @@ function ReservationsContent() {
     if (!guestId) { setError('Guest profile not found. Please contact front desk.'); return }
     if (!selectedTypeId) { setError('Please select a room type.'); return }
     if (checkOut <= checkIn) { setError('Check-out must be after check-in.'); return }
+    if (selectedType && adults + childCount > selectedType.capacity) {
+      setError(`This room type fits up to ${selectedType.capacity} guests. Please reduce the number of adults/children.`)
+      return
+    }
     setSaving(true)
     setError(null)
 
@@ -131,6 +166,8 @@ function ReservationsContent() {
       total_amount: estimatedTotal,
       status: 'pending',
       notes: notes || null,
+      adults,
+      children: childCount,
     })
 
     if (err) { setError(err.message); setSaving(false); return }
@@ -139,6 +176,8 @@ function ReservationsContent() {
     setShowForm(false)
     setSaving(false)
     setNotes('')
+    setAdults(1)
+    setChildCount(0)
     load()
   }
 
@@ -203,6 +242,17 @@ function ReservationsContent() {
                   onChange={e => setCheckOut(e.target.value)}
                   className="w-full border border-[#e8d5c8] rounded-xl px-3 py-3 text-sm text-[#3d2018] bg-white focus:outline-none focus:ring-2 focus:ring-[#b85c38]" />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-[#7a5040] mb-1.5">Guests</label>
+              <div className="border border-[#e8d5c8] rounded-xl px-4 divide-y divide-[#f0e8e0]">
+                <GuestStepper label="Adults" value={adults} min={1} max={10} onChange={setAdults} />
+                <GuestStepper label="Children" value={childCount} min={0} max={6} onChange={setChildCount} />
+              </div>
+              {selectedType && (
+                <p className="text-[10px] text-[#9d8a80] mt-1.5">This room type fits up to {selectedType.capacity} guests.</p>
+              )}
             </div>
 
             {estimatedTotal !== null && (

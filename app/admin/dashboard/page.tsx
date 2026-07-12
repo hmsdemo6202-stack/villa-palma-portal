@@ -25,6 +25,7 @@ type KPIs = {
   newContacts: number
   pendingReviews: number
   activePromotions: number
+  openTickets: number
 }
 
 function currency(n: number) {
@@ -85,6 +86,7 @@ export default function AdminDashboardPage() {
       { count: checkOutsToday },
       { count: pendingReservations },
       { count: activePromotions },
+      { count: openTickets },
     ] = await Promise.all([
       supabase.from('rooms').select('status'),
       supabase.from('guests').select('id', { count: 'exact' }),
@@ -100,6 +102,7 @@ export default function AdminDashboardPage() {
       supabase.from('reservations').select('*', { count: 'exact', head: true }).eq('check_out_date', today),
       supabase.from('reservations').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
       supabase.from('promotions').select('*', { count: 'exact', head: true }).eq('is_active', true),
+      supabase.from('support_tickets').select('*', { count: 'exact', head: true }).eq('status', 'open'),
     ])
 
     const roomList = rooms ?? []
@@ -143,6 +146,7 @@ export default function AdminDashboardPage() {
       newContacts: newContacts ?? 0,
       pendingReviews: pendingReviews ?? 0,
       activePromotions: activePromotions ?? 0,
+      openTickets: openTickets ?? 0,
     })
     setLoading(false)
   }, [supabase])
@@ -236,6 +240,9 @@ export default function AdminDashboardPage() {
           </a>
           <a href="/admin/promotions" className="block">
             <StatCard label="Active Promotions" value={String(kpis.activePromotions)} accent={kpis.activePromotions > 0} sub="live promo codes" />
+          </a>
+          <a href="/admin/support-tickets" className="block">
+            <StatCard label="Open Support Tickets" value={String(kpis.openTickets)} warn={kpis.openTickets > 0} sub="from registered guests" />
           </a>
         </div>
       </section>
