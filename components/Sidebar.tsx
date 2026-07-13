@@ -56,9 +56,10 @@ const SECTIONS: Section[] = [
     label: 'Restaurant',
     icon: '🍽',
     links: [
-      { href: '/admin/menu',   label: 'Menu' },
-      { href: '/admin/orders', label: 'Orders' },
-      { href: '/admin/pos',    label: 'POS Items' },
+      { href: '/admin/menu',         label: 'Menu' },
+      { href: '/admin/orders',       label: 'Orders' },
+      { href: '/admin/pos-terminal', label: 'POS Terminal' },
+      { href: '/admin/pos',          label: 'POS Items' },
     ],
   },
   {
