@@ -185,7 +185,7 @@ export default function CheckInPage() {
       room_id:         selectedRoom.id,
       check_in_date:   wiCheckIn,
       check_out_date:  checkOut,
-      nights:          wiNights,
+      // nights is a generated column (check_out_date - check_in_date), never written directly
       total_amount:    wiAmount ? Number(wiAmount) : null,
       status:          'checked_in',
       actual_check_in: new Date().toISOString(),

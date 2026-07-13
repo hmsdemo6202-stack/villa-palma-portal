@@ -105,10 +105,11 @@ const SECTIONS: Section[] = [
     label: 'Admin',
     icon: '⚙️',
     links: [
-      { href: '/admin/users',      label: 'Users' },
-      { href: '/admin/departments',label: 'Departments' },
-      { href: '/admin/audit-log',  label: 'Audit Log' },
-      { href: '/admin/settings',   label: 'Settings' },
+      { href: '/admin/users',       label: 'Users' },
+      { href: '/admin/departments', label: 'Departments' },
+      { href: '/admin/permissions', label: 'Permissions' },
+      { href: '/admin/audit-log',   label: 'Audit Log' },
+      { href: '/admin/settings',    label: 'Settings' },
     ],
   },
 ]
@@ -135,9 +136,10 @@ interface SidebarProps {
   username: string
   fullName: string
   role: string
+  allowedSections?: Set<string>
 }
 
-export default function Sidebar({ username, fullName, role }: SidebarProps) {
+export default function Sidebar({ username, fullName, role, allowedSections }: SidebarProps) {
   const pathname  = usePathname()
   const router    = useRouter()
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -167,6 +169,14 @@ export default function Sidebar({ username, fullName, role }: SidebarProps) {
     return pathname === href || pathname.startsWith(href + '/')
   }
 
+  // Admin always sees everything; other roles filtered by allowedSections
+  const visibleSections = SECTIONS.filter(s => {
+    if (s.id === 'admin') return role === 'admin'
+    if (role === 'admin') return true
+    if (!allowedSections) return true   // permissions not loaded yet → show all
+    return allowedSections.has(s.id)
+  })
+
   const Nav = () => (
     <div className="flex flex-col h-full">
       {/* Logo */}
@@ -179,7 +189,7 @@ export default function Sidebar({ username, fullName, role }: SidebarProps) {
 
       {/* Nav sections */}
       <nav className="flex-1 py-2 overflow-y-auto">
-        {SECTIONS.map(section => {
+        {visibleSections.map(section => {
           const isOpen   = openSection === section.id
           const isDirect = !!section.href
 

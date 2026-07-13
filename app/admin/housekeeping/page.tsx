@@ -90,6 +90,7 @@ export default function HousekeepingPage() {
   const [housekeeperInput, setHousekeeperInput] = useState('')
   const [statusInput, setStatusInput] = useState<RoomStatus>('dirty')
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   // Lost & Found
   const [items, setItems] = useState<LostItem[]>([])
@@ -127,6 +128,7 @@ export default function HousekeepingPage() {
     setActive(room)
     setHousekeeperInput(room.housekeeper_name ?? '')
     setStatusInput(room.status)
+    setSaveError(null)
   }
 
   async function saveRoomStatus() {
@@ -151,7 +153,13 @@ export default function HousekeepingPage() {
 
     const { error } = await supabase.from('rooms').update(payload).eq('id', active.id)
     setSaving(false)
-    if (!error) { setActive(null); loadRooms() }
+    if (error) {
+      setSaveError(error.message)
+    } else {
+      setSaveError(null)
+      setActive(null)
+      loadRooms()
+    }
   }
 
   function lafFlash(msg: string, ok = true) {
@@ -309,12 +317,18 @@ export default function HousekeepingPage() {
                   ))}
                 </div>
 
+                {saveError && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-3 py-2.5 text-xs mb-1">
+                    <p className="font-semibold mb-0.5">Update failed</p>
+                    <p>{saveError}</p>
+                  </div>
+                )}
                 <div className="flex gap-2">
                   <button onClick={saveRoomStatus} disabled={saving}
                     className="flex-1 bg-terra text-white py-2.5 rounded-lg text-sm font-medium hover:bg-terra-dark disabled:opacity-50 transition-colors">
                     {saving ? 'Saving…' : 'Save'}
                   </button>
-                  <button onClick={() => setActive(null)} className="border border-warm-border px-4 py-2.5 rounded-lg text-sm hover:bg-gray-50">
+                  <button onClick={() => { setActive(null); setSaveError(null) }} className="border border-warm-border px-4 py-2.5 rounded-lg text-sm hover:bg-gray-50">
                     Cancel
                   </button>
                 </div>

@@ -11,6 +11,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     fullName: string
     role: string
   } | null>(null)
+  const [allowedSections, setAllowedSections] = useState<Set<string> | undefined>(undefined)
 
   useEffect(() => {
     const supabase = createClient()
@@ -30,6 +31,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         fullName: staff.full_name ?? staff.username,
         role:     staff.role,
       })
+
+      // Fetch permissions for non-admin roles
+      if (staff.role !== 'admin') {
+        const { data: perms } = await supabase
+          .from('role_permissions')
+          .select('section_id, allowed')
+          .eq('role', staff.role)
+
+        const allowed = new Set<string>()
+        if (perms) {
+          for (const p of perms) {
+            if (p.allowed) allowed.add(p.section_id)
+          }
+        }
+        setAllowedSections(allowed)
+      }
     })
   }, [router])
 
@@ -43,7 +60,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <Sidebar username={profile.username} fullName={profile.fullName} role={profile.role} />
+      <Sidebar username={profile.username} fullName={profile.fullName} role={profile.role} allowedSections={allowedSections} />
       <main className="flex-1 min-w-0 p-5 sm:p-6 lg:p-8 overflow-x-hidden">
         {children}
       </main>
