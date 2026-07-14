@@ -6,6 +6,7 @@ type Category = { id: string; name: string; sort_order: number }
 type Item = {
   id: string; name: string; description: string
   price: number; category_id: string | null; is_available: boolean
+  image_url: string | null
 }
 type CartLine = { item: Item; qty: number }
 
@@ -39,7 +40,7 @@ export default function PosTerminalPage() {
   const load = useCallback(async () => {
     const [{ data: cats }, { data: its }, { data: res }] = await Promise.all([
       supabase.from('pos_categories').select('id, name, sort_order').order('sort_order').order('name'),
-      supabase.from('pos_items').select('id, name, description, price, category_id, is_available').eq('is_available', true).order('name'),
+      supabase.from('pos_items').select('id, name, description, price, category_id, is_available, image_url').eq('is_available', true).order('name'),
       supabase
         .from('reservations')
         .select('id, guests(id, full_name, phone), rooms(room_number)')
@@ -183,20 +184,25 @@ export default function PosTerminalPage() {
                   <button
                     key={item.id}
                     onClick={() => addToCart(item)}
-                    className={`relative text-left p-3 rounded-xl border-2 transition-all hover:shadow-sm active:scale-95 ${
+                    className={`relative text-left rounded-xl border-2 overflow-hidden transition-all hover:shadow-sm active:scale-95 ${
                       inCart ? 'border-terra bg-amber-50' : 'border-warm-border bg-white hover:border-terra/40'
                     }`}
                   >
                     {inCart && (
-                      <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-terra text-white text-[10px] font-bold flex items-center justify-center">
+                      <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-terra text-white text-[10px] font-bold flex items-center justify-center z-10">
                         {inCart.qty}
                       </span>
                     )}
-                    <div className="text-sm font-semibold text-brown leading-tight mb-1 pr-5">{item.name}</div>
-                    {item.description && (
-                      <div className="text-[10px] text-gray-400 leading-tight mb-1.5 line-clamp-2">{item.description}</div>
+                    {item.image_url && (
+                      <img src={item.image_url} alt={item.name} className="w-full h-24 object-cover" />
                     )}
-                    <div className="text-sm font-bold text-terra">{peso(item.price)}</div>
+                    <div className="p-3">
+                      <div className="text-sm font-semibold text-brown leading-tight mb-1 pr-5">{item.name}</div>
+                      {item.description && (
+                        <div className="text-[10px] text-gray-400 leading-tight mb-1.5 line-clamp-2">{item.description}</div>
+                      )}
+                      <div className="text-sm font-bold text-terra">{peso(item.price)}</div>
+                    </div>
                   </button>
                 )
               })}

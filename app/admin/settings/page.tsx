@@ -18,9 +18,9 @@ export default function SettingsPage() {
   const [hotel, setHotel] = useState({
     name: 'Cabalum Hotel & Suites',
     tagline: 'Boutique Hospitality in the Heart of Iloilo',
-    address: 'Iznart Street, Iloilo City, Iloilo 5000',
-    phone: '(033) 320-1234',
-    email: 'info@cabalumhotel.ph',
+    address: 'Dr. Fermin Caram Ave. Sr., Iznart St., Iloilo City, Iloilo 5000',
+    phone: '(033) 337 2536',
+    email: '1945cwc@gmail.com',
     website: 'www.cabalumhotel.ph',
     owner: 'George Michael L. Cabalum',
     total_rooms: '9',
