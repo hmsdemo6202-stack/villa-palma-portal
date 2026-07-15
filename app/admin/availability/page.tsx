@@ -149,6 +149,16 @@ export default function AvailabilityPage() {
 
   useEffect(() => { load() }, [load])
 
+  // Auto-refresh when reservations or rooms change (check-in, checkout, status updates)
+  useEffect(() => {
+    const channel = supabase
+      .channel('availability-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, () => load())
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rooms' }, () => load())
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [supabase, load])
+
   const todayIso = toISO(new Date())
 
   function cellStatus(room: Room, date: Date): { status: CellStatus; res?: Reservation; block?: Block } {
@@ -251,6 +261,10 @@ export default function AvailabilityPage() {
           <button onClick={() => setRangeStart(d => addDays(d, 7))}
             className="text-sm border border-warm-border px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors">
             Next →
+          </button>
+          <button onClick={() => load()}
+            className="text-sm border border-warm-border px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors text-gray-500">
+            ↻ Refresh
           </button>
         </div>
       </div>

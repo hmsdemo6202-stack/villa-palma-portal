@@ -45,7 +45,7 @@ function todayStr() { return new Date().toISOString().split('T')[0] }
 function tomorrowStr() { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0] }
 
 function emptyForm(): ResForm {
-  return { guest_id: '', room_id: '', check_in_date: todayStr(), check_out_date: tomorrowStr(), total_amount: '', status: 'inquiry', notes: '' }
+  return { guest_id: '', room_id: '', check_in_date: todayStr(), check_out_date: tomorrowStr(), total_amount: '', status: 'confirmed', notes: '' }
 }
 
 export default function AdminReservationsPage() {
@@ -136,8 +136,19 @@ export default function AdminReservationsPage() {
   }
 
   async function changeStatus(id: string, status: Reservation['status']) {
+    const res = reservations.find(r => r.id === id)
     const { error: err } = await supabase.from('reservations').update({ status }).eq('id', id)
     if (err) { flash(err.message, false); return }
+    // Sync room physical status when reservation status changes
+    if (res?.room_id) {
+      if (status === 'checked_in') {
+        await supabase.from('rooms').update({ status: 'occupied' }).eq('id', res.room_id)
+      } else if (status === 'checked_out') {
+        await supabase.from('rooms').update({ status: 'dirty' }).eq('id', res.room_id)
+      } else if (status === 'cancelled' || status === 'no_show') {
+        await supabase.from('rooms').update({ status: 'available' }).eq('id', res.room_id)
+      }
+    }
     load()
   }
 
