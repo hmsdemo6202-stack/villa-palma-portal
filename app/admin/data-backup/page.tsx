@@ -206,7 +206,8 @@ export default function DataBackupPage() {
       const bytes = await encryptToHms(JSON.stringify(payload))
       const fname = `cabalum-hms-backup-${new Date().toISOString().slice(0, 10)}.hms`
 
-      const url = URL.createObjectURL(new Blob([bytes], { type: 'application/octet-stream' }))
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const url = URL.createObjectURL(new Blob([bytes as any], { type: 'application/octet-stream' }))
       const a   = Object.assign(document.createElement('a'), { href: url, download: fname })
       a.click()
       URL.revokeObjectURL(url)
