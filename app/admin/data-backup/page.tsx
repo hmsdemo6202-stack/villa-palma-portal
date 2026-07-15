@@ -31,12 +31,15 @@ type BackupLog = {
 const HMS_MAGIC   = new Uint8Array([0x48, 0x4d, 0x53, 0x02])
 const HMS_PASS    = 'CabalumHMS—DataVault—v2—2025'
 
+// Next.js 16 strict TS types require ArrayBuffer (not ArrayBufferLike) for Web Crypto APIs.
+// cx() safely casts Uint8Array to satisfy SubtleCrypto parameter types at runtime.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const cx = (u: Uint8Array | string): any => typeof u === 'string' ? new TextEncoder().encode(u) : u
+
 async function deriveKey(salt: Uint8Array): Promise<CryptoKey> {
-  const raw = await crypto.subtle.importKey(
-    'raw', new TextEncoder().encode(HMS_PASS), 'PBKDF2', false, ['deriveKey']
-  )
+  const raw = await crypto.subtle.importKey('raw', cx(HMS_PASS), 'PBKDF2', false, ['deriveKey'])
   return crypto.subtle.deriveKey(
-    { name: 'PBKDF2', salt, iterations: 100_000, hash: 'SHA-256' },
+    { name: 'PBKDF2', salt: cx(salt), iterations: 100_000, hash: 'SHA-256' },
     raw,
     { name: 'AES-GCM', length: 256 },
     false, ['encrypt', 'decrypt']
@@ -47,14 +50,9 @@ async function encryptToHms(json: string): Promise<Uint8Array> {
   const salt = crypto.getRandomValues(new Uint8Array(16))
   const iv   = crypto.getRandomValues(new Uint8Array(12))
   const key  = await deriveKey(salt)
-  const ct   = new Uint8Array(
-    await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(json))
-  )
+  const ct   = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: cx(iv) }, key, cx(json)))
   const out  = new Uint8Array(4 + 16 + 12 + ct.byteLength)
-  out.set(HMS_MAGIC, 0)
-  out.set(salt, 4)
-  out.set(iv, 20)
-  out.set(ct, 32)
+  out.set(HMS_MAGIC, 0); out.set(salt, 4); out.set(iv, 20); out.set(ct, 32)
   return out
 }
 
@@ -63,7 +61,7 @@ async function decryptHms(buf: ArrayBuffer): Promise<string> {
   if (b[0] !== 0x48 || b[1] !== 0x4d || b[2] !== 0x53 || b[3] !== 0x02)
     throw new Error('Not a valid .hms backup file. Make sure you are using a file exported by this system.')
   const key   = await deriveKey(b.slice(4, 20))
-  const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b.slice(20, 32) }, key, b.slice(32))
+  const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: cx(b.slice(20, 32)) }, key, cx(b.slice(32)))
   return new TextDecoder().decode(plain)
 }
 
