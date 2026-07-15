@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import RetryImg from '@/components/RetryImg'
 
 type GalleryItem = {
   id: string
@@ -150,7 +151,7 @@ export default function AdminGalleryPage() {
           {items.map(item => (
             <div key={item.id} className="bg-white border border-warm-border rounded-xl overflow-hidden">
               <div className="relative h-36 bg-gray-100">
-                <img src={item.image_url} alt={item.title ?? ''} className="w-full h-full object-cover" />
+                <RetryImg src={item.image_url} alt={item.title ?? ''} className="w-full h-full object-cover" />
                 <button onClick={() => toggle(item.id, item.is_active)}
                   className={`absolute top-2 right-2 text-xs px-2 py-0.5 rounded-full font-medium cursor-pointer ${item.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}>
                   {item.is_active ? 'Live' : 'Hidden'}

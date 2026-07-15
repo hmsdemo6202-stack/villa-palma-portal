@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import RetryImg from '@/components/RetryImg'
 
 type GalleryItem = {
   id: string
@@ -215,7 +216,7 @@ export default function WebsiteGalleryPage() {
           {filtered.map(item => (
             <div key={item.id} className="bg-white border border-warm-border rounded-xl overflow-hidden group">
               <div className="relative h-36 bg-gray-100">
-                <img src={item.image_url} alt={item.title ?? ''} className="w-full h-full object-cover" />
+                <RetryImg src={item.image_url} alt={item.title ?? ''} className="w-full h-full object-cover" />
                 {/* Delete on hover */}
                 <button
                   onClick={() => del(item.id)}

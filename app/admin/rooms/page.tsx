@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import RoomPhotoManager from '@/components/RoomPhotoManager'
+import RetryImg from '@/components/RetryImg'
 
 type RoomType = {
   id: string
@@ -251,7 +252,7 @@ export default function AdminRoomsPage() {
                 <tr key={t.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3">
                     {t.image_url
-                      ? <img src={t.image_url} alt={t.name} className="w-14 h-10 object-cover rounded-lg border border-warm-border" />
+                      ? <RetryImg src={t.image_url} alt={t.name} className="w-14 h-10 object-cover rounded-lg border border-warm-border" />
                       : <div className="w-14 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-gray-300 text-xs">No img</div>}
                   </td>
                   <td className="px-4 py-3 font-medium text-brown">{t.name}</td>

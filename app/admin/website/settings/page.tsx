@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import RetryImg from '@/components/RetryImg'
 
 type Setting = { key: string; value: string; label: string; description: string }
 type Slide   = { id: string; image_url: string; title: string; subtitle: string; sort_order: number; is_active: boolean }
@@ -204,7 +205,7 @@ export default function WebsiteSettingsPage() {
               <div key={slide.id} className={`flex gap-3 p-3 rounded-xl border ${slide.is_active ? 'border-warm-border bg-gray-50' : 'border-dashed border-gray-200 bg-white opacity-60'}`}>
                 {/* Thumbnail */}
                 <div className="w-24 h-16 rounded-lg overflow-hidden bg-gray-200 shrink-0">
-                  <img src={slide.image_url} alt="" className="w-full h-full object-cover" />
+                  <RetryImg src={slide.image_url} alt="" className="w-full h-full object-cover" />
                 </div>
                 {/* Fields */}
                 <div className="flex-1 min-w-0 space-y-1.5">

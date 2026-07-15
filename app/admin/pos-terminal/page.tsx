@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import RetryImg from '@/components/RetryImg'
 
 type Category = { id: string; name: string; sort_order: number }
 type Item = {
@@ -194,7 +195,7 @@ export default function PosTerminalPage() {
                       </span>
                     )}
                     {item.image_url && (
-                      <img src={item.image_url} alt={item.name} className="w-full h-24 object-cover" />
+                      <RetryImg src={item.image_url} alt={item.name} className="w-full h-24 object-cover" />
                     )}
                     <div className="p-3">
                       <div className="text-sm font-semibold text-brown leading-tight mb-1 pr-5">{item.name}</div>

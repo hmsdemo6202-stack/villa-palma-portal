@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import RetryImg from '@/components/RetryImg'
 
 type Promotion = {
   id: string
@@ -169,7 +170,7 @@ export default function AdminPromotionsPage() {
             <div key={p.id} className="bg-white border border-warm-border rounded-xl p-4 flex flex-wrap items-start gap-4">
               {p.image_url && (
                 <div className="w-24 h-16 rounded-lg overflow-hidden shrink-0">
-                  <img src={p.image_url} alt={p.title} className="w-full h-full object-cover" />
+                  <RetryImg src={p.image_url} alt={p.title} className="w-full h-full object-cover" />
                 </div>
               )}
               <div className="flex-1 min-w-0">
