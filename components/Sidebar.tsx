@@ -108,7 +108,7 @@ const SECTIONS: Section[] = [
       { href: '/admin/users',       label: 'Users' },
       { href: '/admin/departments', label: 'Departments' },
       { href: '/admin/permissions', label: 'Permissions' },
-      { href: '/admin/audit-log',   label: 'Audit Log' },
+      { href: '/admin/audit-log',   label: 'Activity Log' },
       { href: '/admin/settings',    label: 'Settings' },
     ],
   },
