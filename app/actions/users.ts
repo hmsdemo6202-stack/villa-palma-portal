@@ -11,30 +11,35 @@ export async function createStaffUser(data: {
   phone?: string
   departmentId?: string
 }) {
-  const supabase = createAdminClient()
-  const email = `${data.username}${STAFF_DOMAIN}`
+  try {
+    const supabase = createAdminClient()
+    const email = `${data.username}${STAFF_DOMAIN}`
 
-  const { data: authData, error: authErr } = await supabase.auth.admin.createUser({
-    email,
-    password: data.password,
-    email_confirm: true,
-    user_metadata: { full_name: data.fullName, role: data.role },
-  })
-  if (authErr) return { error: authErr.message }
-
-  const uid = authData.user.id
-
-  // The trigger auto-inserts a users row; patch extra fields
-  const { error: patchErr } = await supabase
-    .from('users')
-    .update({
-      phone:         data.phone         || null,
-      department_id: data.departmentId  || null,
+    const { data: authData, error: authErr } = await supabase.auth.admin.createUser({
+      email,
+      password: data.password,
+      email_confirm: true,
+      user_metadata: { full_name: data.fullName, role: data.role },
     })
-    .eq('id', uid)
+    if (authErr) return { error: authErr.message }
+    if (!authData?.user?.id) return { error: 'User creation returned no ID.' }
 
-  if (patchErr) return { error: patchErr.message }
-  return { success: true }
+    const uid = authData.user.id
+
+    // The trigger auto-inserts a users row (handle_new_user); patch extra fields
+    const { error: patchErr } = await supabase
+      .from('users')
+      .update({
+        phone:         data.phone         || null,
+        department_id: data.departmentId  || null,
+      })
+      .eq('id', uid)
+
+    if (patchErr) return { error: patchErr.message }
+    return { success: true }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Unexpected server error.' }
+  }
 }
 
 export async function deleteStaffUser(userId: string) {
