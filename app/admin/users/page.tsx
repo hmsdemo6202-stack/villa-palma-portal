@@ -199,14 +199,16 @@ export default function AdminUsersPage() {
               <input required value={createForm.username}
                 onChange={e => setCreateForm(f => ({ ...f, username: e.target.value }))}
                 placeholder="e.g. juan.reyes"
+                autoComplete="off"
                 className="w-full border border-warm-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-terra" />
-              <p className="text-[10px] text-gray-400 mt-1">Login email: {createForm.username || 'username'}@cabalumhotel.com — no @ symbol in this field</p>
+              <p className="text-[10px] text-gray-400 mt-1">Login email: {createForm.username || 'username'}@cabalum.internal — no @ symbol in this field</p>
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Password *</label>
               <input required type="password" minLength={6} value={createForm.password}
                 onChange={e => setCreateForm(f => ({ ...f, password: e.target.value }))}
                 placeholder="Min 6 characters"
+                autoComplete="new-password"
                 className="w-full border border-warm-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-terra" />
             </div>
             <div>

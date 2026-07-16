@@ -1,7 +1,7 @@
 'use server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
-const STAFF_DOMAIN = '@cabalumhotel.com'
+const STAFF_DOMAIN = '@cabalum.internal'
 
 export async function createStaffUser(data: {
   username: string
