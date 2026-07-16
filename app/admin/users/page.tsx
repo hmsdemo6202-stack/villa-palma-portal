@@ -117,6 +117,7 @@ export default function AdminUsersPage() {
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
     if (!createForm.username.trim()) { flash('Username is required.', false); return }
+    if (createForm.username.includes('@')) { flash('Username must not include @. Enter only the name part (e.g. juan.reyes).', false); return }
     if (createForm.password.length < 6) { flash('Password must be at least 6 characters.', false); return }
     setSaving(true)
     const result = await createStaffUser({
@@ -199,7 +200,7 @@ export default function AdminUsersPage() {
                 onChange={e => setCreateForm(f => ({ ...f, username: e.target.value }))}
                 placeholder="e.g. juan.reyes"
                 className="w-full border border-warm-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-terra" />
-              <p className="text-[10px] text-gray-400 mt-1">Login: {createForm.username || 'username'}@cabalum.internal</p>
+              <p className="text-[10px] text-gray-400 mt-1">Login email: {createForm.username || 'username'}@cabalumhotel.com — no @ symbol in this field</p>
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Password *</label>

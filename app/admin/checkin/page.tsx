@@ -34,11 +34,13 @@ function nowLocal() {
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
   return d.toISOString().slice(0, 16)
 }
-function todayISO() { return new Date().toISOString().split('T')[0] }
+function todayISO() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 function addDays(iso: string, n: number) {
-  const d = new Date(iso + 'T00:00:00')
-  d.setDate(d.getDate() + n)
-  return d.toISOString().split('T')[0]
+  const [y, m, day] = iso.split('-').map(Number)
+  return new Date(Date.UTC(y, m - 1, day + n)).toISOString().split('T')[0]
 }
 
 function emptyForm(): CheckInForm {

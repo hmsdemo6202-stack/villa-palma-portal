@@ -1,7 +1,7 @@
 'use server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
-const STAFF_DOMAIN = '@cabalum.internal'
+const STAFF_DOMAIN = '@cabalumhotel.com'
 
 export async function createStaffUser(data: {
   username: string
@@ -26,16 +26,20 @@ export async function createStaffUser(data: {
 
     const uid = authData.user.id
 
-    // The trigger auto-inserts a users row (handle_new_user); patch extra fields
-    const { error: patchErr } = await supabase
+    // Insert the public.users row directly (service role bypasses RLS)
+    const { error: insertErr } = await supabase
       .from('users')
-      .update({
-        phone:         data.phone         || null,
-        department_id: data.departmentId  || null,
+      .insert({
+        id:            uid,
+        username:      data.username,
+        full_name:     data.fullName     || null,
+        role:          data.role,
+        phone:         data.phone        || null,
+        department_id: data.departmentId || null,
+        is_active:     true,
       })
-      .eq('id', uid)
 
-    if (patchErr) return { error: patchErr.message }
+    if (insertErr) return { error: insertErr.message }
     return { success: true }
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Unexpected server error.' }
